@@ -52,6 +52,7 @@ nodes. See `priv/tck/ATTRIBUTION.md`; the corpus is share-alike licensed and has
 ```bash
 mix ash_decisions.tck            # run the corpus and gate on the result
 mix ash_decisions.tck --failures # list everything that did not pass, grouped by cause
+mix ash_decisions.tck --downgrade # same run against DMN 1.3, the revision dmn-js writes
 mix ash_decisions.tck.verify     # prove the vendored corpus is unmodified
 ```
 
@@ -82,6 +83,29 @@ question: external Java functions (deliberately unsupported — a DMN model reac
 `java.lang.Math` is tenant-authored code execution); a validator stricter than the schema
 about optional `id` and `locationURI` attributes; last-digit disagreement in exponentiation
 across the loan-amortisation groups; and one decision-service result-shape difference.
+
+## The DMN revision gap, and how it is closed
+
+Two halves of the toolchain disagree about which DMN they speak:
+
+- **`dmn-js`**, the bpmn.io modeller and the only serious browser DMN editor, has emitted
+  **DMN 1.3** since its 8.0.0 release and still does at 17.x.
+- **`boxic_dmn`**, the engine, loads **DMN 1.5** and refuses anything else with
+  `:dmn_version_mismatch`.
+
+So a document drawn in the designer is rejected by the engine that has to run it.
+`AshDecisions.Dmn.Profile` closes that on the way *into* the engine by rewriting the MODEL and
+FEEL namespace URIs, and nothing else — no element added, removed, renamed or reordered. The
+stored document is never touched, because `content_hash` is what says a snapshot and a
+document belong together.
+
+The safety of that rewrite is **measured, not argued**. The vendored corpus is entirely DMN
+1.5, so `mix ash_decisions.tck --downgrade` rewrites every model to the 1.3 namespaces first
+and re-runs the whole suite. Identical numbers with and without it — 3414/3495 both ways —
+is the claim.
+
+It also means the conformance number is a statement about DMN 1.5 documents specifically:
+that is what upstream ships, and there is no 1.2/1.3/1.4 corpus to measure against.
 
 ## Requirements
 

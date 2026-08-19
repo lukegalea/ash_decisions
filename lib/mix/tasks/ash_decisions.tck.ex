@@ -14,6 +14,10 @@ defmodule Mix.Tasks.AshDecisions.Tck do
     * `--level LEVEL` — restrict to one compliance level; repeatable.
     * `--failures` — list every failing and model-error case with its detail.
     * `--json PATH` — write the full result set as JSON.
+    * `--downgrade` — rewrite every model to the DMN 1.3 namespaces before loading. The corpus
+      ships as DMN 1.5 and the engine loads only 1.5, but `dmn-js` writes 1.3 — so this run is
+      what proves `AshDecisions.Dmn.Profile` brings a designer document forward without
+      changing a single answer. Identical numbers with and without it is the whole claim.
 
   ## The gate
 
@@ -31,7 +35,7 @@ defmodule Mix.Tasks.AshDecisions.Tck do
 
   alias AshDecisions.Tck.Runner
 
-  @switches [level: :keep, failures: :boolean, json: :string]
+  @switches [level: :keep, failures: :boolean, json: :string, downgrade: :boolean]
 
   @impl Mix.Task
   def run(argv) do
@@ -40,6 +44,7 @@ defmodule Mix.Tasks.AshDecisions.Tck do
 
     levels = Keyword.get_values(opts, :level)
     run_opts = if levels == [], do: [], else: [levels: levels]
+    run_opts = Keyword.put(run_opts, :downgrade, opts[:downgrade] || false)
 
     {results, summary} = Runner.run(run_opts)
 

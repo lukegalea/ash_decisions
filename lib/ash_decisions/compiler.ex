@@ -152,7 +152,9 @@ defmodule AshDecisions.Compiler do
   # measured against spans DMN 1.2 to 1.5, and so does everything dmn-js exports.
   # Refusing a 1.3 document would refuse most real ones.
   defp load_and_validate(xml) do
-    case Boxic.DMN.load_xml(xml) do
+    # Same normalization the evaluator applies, for the same reason: a document that
+    # compiles must be a document that runs, so both must see the engine the same way.
+    case xml |> AshDecisions.Dmn.Profile.normalize() |> Boxic.DMN.load_xml() do
       {:ok, model} ->
         case Boxic.DMN.validate(model) do
           :ok -> {:ok, model}

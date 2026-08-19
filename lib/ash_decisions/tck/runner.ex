@@ -60,10 +60,20 @@ defmodule AshDecisions.Tck.Runner do
   """
   @spec run(keyword()) :: {[result()], map()}
   def run(opts \\ []) do
+    downgrade? = Keyword.get(opts, :downgrade, false)
+
     results =
       opts
       |> case_files()
-      |> Task.async_stream(&run_file/1, timeout: :infinity, ordered: true)
+      |> Task.async_stream(
+        fn entry ->
+          # Each case file runs in its own task, so the flag has to be set inside it.
+          Process.put(:ash_decisions_tck_downgrade, downgrade?)
+          run_file(entry)
+        end,
+        timeout: :infinity,
+        ordered: true
+      )
       |> Enum.flat_map(fn {:ok, rs} -> rs end)
 
     {results, summarize(results)}
@@ -89,7 +99,13 @@ defmodule AshDecisions.Tck.Runner do
   # (`0086-import`, `0089-nested-inputdata-imports`) import sibling documents, and only the
   # file-based loader resolves those relative to the model's own directory.
   defp load_model(path) do
-    with {:ok, model} <- Boxic.DMN.load_file(path) do
+    # Read and normalize rather than `load_file/1`, so the corpus exercises the same path a
+    # published definition takes. `--downgrade` additionally rewrites each model to DMN 1.3
+    # first, which is how the namespace normalization in `AshDecisions.Dmn.Profile` is checked
+    # against real models rather than against an argument about the specification.
+    with {:ok, xml} <- File.read(path),
+         xml = maybe_downgrade(xml),
+         {:ok, model} <- xml |> AshDecisions.Dmn.Profile.normalize() |> Boxic.DMN.load_xml() do
       # Validation failures are reported as model errors rather than swallowed: a model the
       # engine considers invalid cannot produce a meaningful result, and pretending
       # otherwise would score the corpus against an engine running in an undefined state.
@@ -102,6 +118,24 @@ defmodule AshDecisions.Tck.Runner do
     end
   rescue
     e -> {:error, "load raised: #{Exception.message(e)}"}
+  end
+
+  # Rewrites a model to the DMN 1.3 namespaces, so a run can prove that a 1.3 document -- which
+  # is what `dmn-js` produces -- reaches the same answers as the 1.5 original.
+  defp maybe_downgrade(xml) do
+    if Process.get(:ash_decisions_tck_downgrade) do
+      xml
+      |> String.replace(
+        "https://www.omg.org/spec/DMN/20230324/MODEL/",
+        "https://www.omg.org/spec/DMN/20191111/MODEL/"
+      )
+      |> String.replace(
+        "https://www.omg.org/spec/DMN/20230324/FEEL/",
+        "https://www.omg.org/spec/DMN/20191111/FEEL/"
+      )
+    else
+      xml
+    end
   end
 
   defp model_error(%Case{} = c, reason) do

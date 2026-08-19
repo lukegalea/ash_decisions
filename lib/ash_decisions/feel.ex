@@ -192,6 +192,77 @@ defmodule AshDecisions.Feel do
   end
 
   @doc """
+  Converts an Elixir value into one the engine can navigate and compare.
+
+  Three rules, and the first is the one that silently ruins a decision table if it is missed:
+
+    * **Integers and floats become `Decimal`.** FEEL's numeric model is decimal, and a literal
+      in an input entry parses to a `Decimal`. An Elixir integer left in the context makes
+      `< 1000` a type error, which FEEL folds to `null`, which a decision table reads as
+      "this rule did not match". No rule matches, the table returns null, and nothing anywhere
+      reports a problem. This conversion is the difference between a working table and a
+      silently empty one.
+    * **Keys become strings**, because that is what a FEEL context is.
+    * **Unloaded and forbidden fields are dropped, not nilled.** A dropped key is a missing
+      path is `null` -- the honest answer for a value we do not have, and the only safe one
+      for a field the actor may not read: nilling it would let a hidden value decide a case.
+
+  The same function exists in `AshBpmn.Feel`, because both packages adapt the same engine and
+  neither may depend on the other. The duplication is the price of the seam, and it is a
+  smaller price than a shared package that both would then have to version against.
+  """
+  @spec to_feel_value(term(), non_neg_integer()) :: term()
+  def to_feel_value(value, depth \\ 3)
+
+  def to_feel_value(_value, depth) when depth < 0, do: nil
+  def to_feel_value(nil, _depth), do: nil
+
+  def to_feel_value(%Ash.NotLoaded{}, _depth), do: :__drop__
+  def to_feel_value(%Ash.ForbiddenField{}, _depth), do: :__drop__
+
+  # See the moduledoc for this function: the single most consequential line in the adapter.
+  def to_feel_value(value, _depth) when is_integer(value), do: Decimal.new(value)
+  def to_feel_value(value, _depth) when is_float(value), do: Decimal.from_float(value)
+
+  # Values the engine models itself are passed through untouched.
+  def to_feel_value(%Decimal{} = value, _depth), do: value
+  def to_feel_value(%Date{} = value, _depth), do: value
+  def to_feel_value(%Time{} = value, _depth), do: value
+  def to_feel_value(%DateTime{} = value, _depth), do: value
+  def to_feel_value(%NaiveDateTime{} = value, _depth), do: value
+  def to_feel_value(%Boxic.FEEL.Time{} = value, _depth), do: value
+  def to_feel_value(%Boxic.FEEL.DateTime{} = value, _depth), do: value
+  def to_feel_value(%Boxic.FEEL.Duration{} = value, _depth), do: value
+  def to_feel_value(%Boxic.FEEL.Range{} = value, _depth), do: value
+
+  def to_feel_value(%_struct{} = record, depth) do
+    record
+    |> Map.from_struct()
+    |> Map.drop([:__meta__, :__metadata__, :__order__, :__lateral_join_source__])
+    |> to_feel_value(depth)
+  end
+
+  def to_feel_value(map, depth) when is_map(map) do
+    Enum.reduce(map, %{}, fn {key, value}, acc ->
+      case to_feel_value(value, depth - 1) do
+        :__drop__ -> acc
+        converted -> Map.put(acc, to_string(key), converted)
+      end
+    end)
+  end
+
+  def to_feel_value(list, depth) when is_list(list) do
+    list
+    |> Enum.map(&to_feel_value(&1, depth - 1))
+    |> Enum.reject(&(&1 == :__drop__))
+  end
+
+  def to_feel_value(value, _depth) when is_atom(value) and not is_boolean(value),
+    do: to_string(value)
+
+  def to_feel_value(value, _depth), do: value
+
+  @doc """
   Renders an engine value as the FEEL source text that would produce it.
 
   The other half of the seam. Engine values are engine-shaped — `Decimal`,
