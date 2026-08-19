@@ -77,11 +77,20 @@ defmodule AshDecisions.Tck.Value do
     case type |> String.split(":") |> List.last() do
       # Only strings keep their surrounding whitespace; for every other type it is XML
       # indentation rather than data.
-      "string" -> {:ok, text}
-      "boolean" -> {:ok, String.trim(text) in ["true", "1"]}
-      n when n in ["decimal", "double", "integer", "int", "long", "float"] -> number(String.trim(text))
-      t when t in ["date", "time", "dateTime", "duration"] -> temporal(t, String.trim(text))
-      other -> {:error, "unsupported xsi:type #{inspect(other)}"}
+      "string" ->
+        {:ok, text}
+
+      "boolean" ->
+        {:ok, String.trim(text) in ["true", "1"]}
+
+      n when n in ["decimal", "double", "integer", "int", "long", "float"] ->
+        number(String.trim(text))
+
+      t when t in ["date", "time", "dateTime", "duration"] ->
+        temporal(t, String.trim(text))
+
+      other ->
+        {:error, "unsupported xsi:type #{inspect(other)}"}
     end
   end
 

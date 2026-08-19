@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20230324/MODEL/"
+             id="drd_definitions"
+             name="Lending"
+             namespace="https://ash-decisions.test/lending"
+             expressionLanguage="https://www.omg.org/spec/DMN/20230324/FEEL/"
+             typeLanguage="https://www.omg.org/spec/DMN/20230324/FEEL/">
+  <inputData id="input_age" name="age">
+    <variable id="var_age" name="age" typeRef="number"/>
+  </inputData>
+  <decision id="decision_eligible" name="Eligible">
+    <variable id="var_eligible" name="Eligible" typeRef="boolean"/>
+    <informationRequirement id="req_age">
+      <requiredInput href="#input_age"/>
+    </informationRequirement>
+    <decisionTable id="table_eligible" hitPolicy="FIRST" outputLabel="Eligible">
+      <input id="clause_age" label="Age">
+        <inputExpression id="expr_age" typeRef="number">
+          <text>age</text>
+        </inputExpression>
+      </input>
+      <output id="clause_eligible" name="eligible" typeRef="boolean"/>
+      <rule id="rule_adult">
+        <inputEntry id="rule_adult_0"><text>&gt;= 18</text></inputEntry>
+        <outputEntry id="rule_adult_1"><text>true</text></outputEntry>
+      </rule>
+      <rule id="rule_minor">
+        <inputEntry id="rule_minor_0"><text>-</text></inputEntry>
+        <outputEntry id="rule_minor_1"><text>false</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+  <decision id="decision_offer" name="Offer">
+    <variable id="var_offer" name="Offer" typeRef="string"/>
+    <informationRequirement id="req_eligible">
+      <requiredDecision href="#decision_eligible"/>
+    </informationRequirement>
+    <literalExpression id="expr_offer" typeRef="string">
+      <text>if Eligible then "standard" else "none"</text>
+    </literalExpression>
+  </decision>
+</definitions>

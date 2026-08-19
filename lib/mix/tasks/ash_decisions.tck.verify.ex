@@ -74,7 +74,8 @@ defmodule Mix.Tasks.AshDecisions.Tck.Verify do
     |> Enum.reject(&File.dir?/1)
     |> Enum.reject(&(Path.basename(&1) in @ours))
     |> Map.new(fn file ->
-      {"./" <> Path.relative_to(file, dir), file |> File.read!() |> then(&:crypto.hash(:sha256, &1)) |> Base.encode16(case: :lower)}
+      {"./" <> Path.relative_to(file, dir),
+       file |> File.read!() |> then(&:crypto.hash(:sha256, &1)) |> Base.encode16(case: :lower)}
     end)
   end
 end

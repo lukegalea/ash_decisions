@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20230324/MODEL/"
+             id="dangling_definitions"
+             name="Dangling"
+             namespace="https://ash-decisions.test/dangling"
+             expressionLanguage="https://www.omg.org/spec/DMN/20230324/FEEL/"
+             typeLanguage="https://www.omg.org/spec/DMN/20230324/FEEL/">
+  <decision id="decision_orphan" name="Orphan">
+    <variable id="var_orphan" name="Orphan" typeRef="number"/>
+    <informationRequirement id="req_missing">
+      <requiredDecision href="#decision_that_is_not_here"/>
+    </informationRequirement>
+    <literalExpression id="expr_orphan" typeRef="number"><text>1</text></literalExpression>
+  </decision>
+</definitions>

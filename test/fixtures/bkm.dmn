@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20230324/MODEL/"
+             id="bkm_definitions"
+             name="WithBkm"
+             namespace="https://ash-decisions.test/bkm"
+             expressionLanguage="https://www.omg.org/spec/DMN/20230324/FEEL/"
+             typeLanguage="https://www.omg.org/spec/DMN/20230324/FEEL/">
+  <businessKnowledgeModel id="bkm_double" name="Double">
+    <variable id="var_bkm_double" name="Double"/>
+    <encapsulatedLogic id="bkm_logic" kind="FEEL">
+      <formalParameter id="bkm_param" name="value" typeRef="number"/>
+      <literalExpression id="bkm_expr"><text>value * 2</text></literalExpression>
+    </encapsulatedLogic>
+  </businessKnowledgeModel>
+  <decision id="decision_doubled" name="Doubled">
+    <variable id="var_doubled" name="Doubled" typeRef="number"/>
+    <knowledgeRequirement id="kreq_double">
+      <requiredKnowledge href="#bkm_double"/>
+    </knowledgeRequirement>
+    <literalExpression id="expr_doubled" typeRef="number">
+      <text>Double(21)</text>
+    </literalExpression>
+  </decision>
+</definitions>

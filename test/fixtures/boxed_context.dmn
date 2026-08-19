@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20230324/MODEL/"
+             id="context_definitions"
+             name="BoxedContext"
+             namespace="https://ash-decisions.test/context"
+             expressionLanguage="https://www.omg.org/spec/DMN/20230324/FEEL/"
+             typeLanguage="https://www.omg.org/spec/DMN/20230324/FEEL/">
+  <decision id="decision_context" name="Totals">
+    <variable id="var_totals" name="Totals"/>
+    <context id="ctx_totals">
+      <contextEntry id="ctx_entry_net">
+        <variable id="ctx_var_net" name="net" typeRef="number"/>
+        <literalExpression id="ctx_expr_net"><text>100</text></literalExpression>
+      </contextEntry>
+      <contextEntry id="ctx_entry_gross">
+        <literalExpression id="ctx_expr_gross"><text>net * 1.2</text></literalExpression>
+      </contextEntry>
+    </context>
+  </decision>
+</definitions>

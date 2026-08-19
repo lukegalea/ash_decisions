@@ -13,9 +13,23 @@ and never decides; a business rule task hands the deciding to a decision.
 
 ## Status
 
-**Early.** What exists today is the conformance harness (below) and the adoption decision it
-settled. The Ash resource layer, the compiler, the publish-time analysis and the dmn-js
-designer are being built on top of it.
+**Early, and specific about it.** What exists and is under test:
+
+- **`AshDecisions.Resources.Definition`** — versioned DMN definitions with a
+  `draft → published → retired` lifecycle, at most one draft per key, and a publish that
+  refuses to run over a compile error.
+- **`AshDecisions.Resources.Evaluation`** — an append-only row per invoked decision: inputs,
+  outputs, which rules matched, how long it took, and the failure when there was one.
+- **`AshDecisions.Compiler`** — DMN in, immutable JSON snapshot out, with an explicit list of
+  constructs it refuses by element id rather than skipping quietly.
+- **`AshDecisions.Feel`** — the single module that touches the FEEL engine, with a killed-process
+  timeout and size and depth bounds on every tenant-authored expression.
+- **`AshDecisions.Scope`** and the generated authorization bypass, tenancy via `tenant?: true`,
+  and `:base` for sitting on a host application's base resource.
+
+What does **not** exist yet: the evaluation facade that ties a published definition to the engine
+and writes the evaluation row, publish-time overlap and completeness analysis, and the dmn-js
+designer.
 
 ## The engine is adopted, not written
 

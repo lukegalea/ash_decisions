@@ -15,6 +15,7 @@ defmodule AshDecisions.MixProject do
       elixir: "~> 1.17",
       start_permanent: Mix.env() == :prod,
       elixirc_paths: elixirc_paths(Mix.env()),
+      aliases: aliases(),
       deps: deps(),
       description: @description,
       package: package(),
@@ -54,7 +55,25 @@ defmodule AshDecisions.MixProject do
       {:boxic_dmn, "~> 0.3"},
       {:boxic_feel, "~> 0.2"},
       {:decimal, "~> 3.1"},
-      {:jason, "~> 1.2"}
+      {:jason, "~> 1.2"},
+      # The Ash layer. `ash_postgres` is the data layer every generated resource
+      # declares unless a host's base resource declares one instead.
+      {:ash, "~> 3.0"},
+      {:ash_postgres, "~> 2.0"},
+      # dev/test only
+      {:simple_sat, "~> 0.1", only: [:dev, :test]},
+      {:sourceror, "~> 1.8", only: [:dev, :test]},
+      {:ex_doc, "~> 0.34", only: :dev, runtime: false},
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
+      {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
+      {:mix_audit, ">= 0.0.0", only: [:dev, :test], runtime: false}
+    ]
+  end
+
+  defp aliases do
+    [
+      credo: "credo --strict",
+      test: ["test"]
     ]
   end
 end

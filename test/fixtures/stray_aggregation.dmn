@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20230324/MODEL/"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             id="stray_aggregation_definitions"
+             name="Discount"
+             namespace="https://ash-decisions.test/discount"
+             expressionLanguage="https://www.omg.org/spec/DMN/20230324/FEEL/"
+             typeLanguage="https://www.omg.org/spec/DMN/20230324/FEEL/">
+  <inputData id="input_order_total" name="orderTotal">
+    <variable id="var_order_total" name="orderTotal" typeRef="number"/>
+  </inputData>
+  <inputData id="input_customer_tier" name="customerTier">
+    <variable id="var_customer_tier" name="customerTier" typeRef="string"/>
+  </inputData>
+  <decision id="decision_discount" name="Discount">
+    <variable id="var_discount" name="Discount" typeRef="number"/>
+    <informationRequirement id="req_total">
+      <requiredInput href="#input_order_total"/>
+    </informationRequirement>
+    <informationRequirement id="req_tier">
+      <requiredInput href="#input_customer_tier"/>
+    </informationRequirement>
+    <decisionTable id="table_discount" hitPolicy="UNIQUE" aggregation="SUM" outputLabel="Discount">
+      <input id="clause_total" label="Order total">
+        <inputExpression id="expr_total" typeRef="number">
+          <text>orderTotal</text>
+        </inputExpression>
+      </input>
+      <input id="clause_tier" label="Customer tier">
+        <inputExpression id="expr_tier" typeRef="string">
+          <text>customerTier</text>
+        </inputExpression>
+      </input>
+      <output id="clause_discount" name="discount" label="Discount" typeRef="number"/>
+      <rule id="rule_gold_large">
+        <inputEntry id="rule_gold_large_0"><text>&gt;= 1000</text></inputEntry>
+        <inputEntry id="rule_gold_large_1"><text>"gold"</text></inputEntry>
+        <outputEntry id="rule_gold_large_2"><text>0.15</text></outputEntry>
+      </rule>
+      <rule id="rule_gold_small">
+        <inputEntry id="rule_gold_small_0"><text>&lt; 1000</text></inputEntry>
+        <inputEntry id="rule_gold_small_1"><text>"gold"</text></inputEntry>
+        <outputEntry id="rule_gold_small_2"><text>0.10</text></outputEntry>
+      </rule>
+      <rule id="rule_standard">
+        <inputEntry id="rule_standard_0"><text>-</text></inputEntry>
+        <inputEntry id="rule_standard_1"><text>"standard"</text></inputEntry>
+        <outputEntry id="rule_standard_2"><text>0</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

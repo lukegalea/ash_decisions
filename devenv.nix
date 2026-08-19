@@ -37,6 +37,20 @@ in
     libxml2
   ];
 
+  # devenv shifts the Postgres port when the requested one is taken (Docker,
+  # another checkout of a sibling package), rewriting postgresql.conf but leaving
+  # the exported $PGPORT at the value it asked for. The two then disagree and
+  # every client connects to the wrong cluster -- or, worse, to a different
+  # project's. postgresql.conf is the authoritative answer, so read it back.
+  # It does not exist on a cold checkout, before the first `devenv up`.
+  enterShell = ''
+    if [ -f "$DEVENV_STATE/postgres/postgresql.conf" ]; then
+      _pgport="$(sed -n 's/^port = \([0-9]\+\).*/\1/p' "$DEVENV_STATE/postgres/postgresql.conf" | tail -n1)"
+      [ -n "$_pgport" ] && export PGPORT="$_pgport"
+      unset _pgport
+    fi
+  '';
+
   services.postgres = {
     enable = true;
     package = pkgs.postgresql_16;

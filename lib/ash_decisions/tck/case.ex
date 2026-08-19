@@ -20,7 +20,18 @@ defmodule AshDecisions.Tck.Case do
 
   alias AshDecisions.Tck.{Value, Xml}
 
-  defstruct [:group, :level, :model_path, :case_file, :id, :description, :type, :invocable, :inputs, :results]
+  defstruct [
+    :group,
+    :level,
+    :model_path,
+    :case_file,
+    :id,
+    :description,
+    :type,
+    :invocable,
+    :inputs,
+    :results
+  ]
 
   @type result :: %{name: String.t(), expects_error?: boolean(), expected: term()}
   @type t :: %__MODULE__{
@@ -105,7 +116,11 @@ defmodule AshDecisions.Tck.Case do
       case expected do
         {:ok, value} ->
           {:cont,
-           {:ok, [%{name: Xml.attr(node, "name"), expects_error?: expects_error?, expected: value} | acc]}}
+           {:ok,
+            [
+              %{name: Xml.attr(node, "name"), expects_error?: expects_error?, expected: value}
+              | acc
+            ]}}
 
         {:error, reason} ->
           {:halt, {:error, reason}}

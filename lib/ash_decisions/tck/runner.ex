@@ -132,9 +132,21 @@ defmodule AshDecisions.Tck.Runner do
   # no exceptions, and the corpus states the expectation as nil alongside the flag.
   defp compare(c, %{expects_error?: true} = e, actual) do
     case actual do
-      {:error, _} -> result(c.level, c.group, c.id, e.name, :passed, nil)
-      {:ok, nil} -> result(c.level, c.group, c.id, e.name, :passed, nil)
-      {:ok, value} -> result(c.level, c.group, c.id, e.name, :failed, "expected null or an error, got #{trunc_inspect(value)}")
+      {:error, _} ->
+        result(c.level, c.group, c.id, e.name, :passed, nil)
+
+      {:ok, nil} ->
+        result(c.level, c.group, c.id, e.name, :passed, nil)
+
+      {:ok, value} ->
+        result(
+          c.level,
+          c.group,
+          c.id,
+          e.name,
+          :failed,
+          "expected null or an error, got #{trunc_inspect(value)}"
+        )
     end
   end
 
@@ -144,8 +156,14 @@ defmodule AshDecisions.Tck.Runner do
         if Value.matches?(e.expected, value) do
           result(c.level, c.group, c.id, e.name, :passed, nil)
         else
-          result(c.level, c.group, c.id, e.name, :failed,
-            "expected #{trunc_inspect(e.expected)}, got #{trunc_inspect(value)}")
+          result(
+            c.level,
+            c.group,
+            c.id,
+            e.name,
+            :failed,
+            "expected #{trunc_inspect(e.expected)}, got #{trunc_inspect(value)}"
+          )
         end
 
       {:error, reason} ->
@@ -154,7 +172,14 @@ defmodule AshDecisions.Tck.Runner do
   end
 
   defp result(level, group, case_id, decision, outcome, detail) do
-    %{level: level, group: group, case_id: case_id, decision: decision, outcome: outcome, detail: detail}
+    %{
+      level: level,
+      group: group,
+      case_id: case_id,
+      decision: decision,
+      outcome: outcome,
+      detail: detail
+    }
   end
 
   defp trunc_inspect(term), do: inspect(term, limit: 5, printable_limit: 120)
