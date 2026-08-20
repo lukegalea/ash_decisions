@@ -60,8 +60,16 @@ defmodule AshDecisions.MixProject do
       # declares unless a host's base resource declares one instead.
       {:ash, "~> 3.0"},
       {:ash_postgres, "~> 2.0"},
+      # The dmn-js editor LiveView. A hard dependency rather than optional, the
+      # same way ash_bpmn declares it: the editor is half of what this package is
+      # for, and an optional dependency that the shipped module needs anyway buys
+      # a compile-time failure instead of a resolvable one.
+      {:phoenix_live_view, "~> 1.0"},
       # dev/test only
       {:simple_sat, "~> 0.1", only: [:dev, :test]},
+      # LiveView tests need an HTML query engine. `lazy_html` rather than floki
+      # because it is what phoenix_live_view 1.x selects against.
+      {:lazy_html, ">= 0.1.0", only: :test},
       {:sourceror, "~> 1.8", only: [:dev, :test]},
       {:ex_doc, "~> 0.34", only: :dev, runtime: false},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},

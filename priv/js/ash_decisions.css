@@ -1,0 +1,36 @@
+/*
+ * SPDX-FileCopyrightText: 2026 Luke Galea
+ * SPDX-License-Identifier: MIT
+ *
+ * The editor's own layout. Deliberately tiny: dmn-js ships its own stylesheets
+ * for the diagram and the table, and this only gives them somewhere to live.
+ */
+
+/* dmn-js measures its viewport from the container. A container with no height
+ * imports the document successfully and renders nothing -- which reads as a
+ * broken editor rather than as a missing rule. */
+.ash-decisions-canvas {
+  height: 100%;
+  min-height: 32rem;
+  width: 100%;
+  overflow: auto;
+}
+
+/* The decision table wants to fill its parent; the DRD wants to be scrolled. */
+.ash-decisions-canvas .dmn-decision-table-container,
+.ash-decisions-canvas .dmn-literal-expression-container {
+  padding: 1rem;
+}
+
+/* REQUIRED BY LICENCE. dmn-js ships under the bpmn.io licence, whose text is
+ * byte-identical to bpmn-js's: the watermark's source "MUST NOT be removed or
+ * changed", and it "must stay fully visible and not visually overlapped by
+ * other elements". Tailwind preflight and daisyUI both reset anchors and could
+ * otherwise collapse it, so it is pinned here rather than left to chance.
+ * A LiveView test asserts the element is present. Do not delete either. */
+.ash-decisions-canvas .bjs-powered-by {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  z-index: 10;
+}

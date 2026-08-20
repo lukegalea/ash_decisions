@@ -12,6 +12,16 @@ config :ash_decisions, AshDecisions.TestRepo,
   pool: Ecto.Adapters.SQL.Sandbox,
   pool_size: System.schedulers_online()
 
+# The web test endpoint (test/support/web_endpoint.ex). Config lives here rather
+# than in a compile-time Application.put_env in the module body, because that
+# only executes on fresh compilation and never from cached beams.
+config :ash_decisions, AshDecisions.Web.TestEndpoint,
+  server: false,
+  pubsub_server: AshDecisions.Web.TestPubSub,
+  secret_key_base: String.duplicate("a", 64),
+  live_view: [signing_salt: String.duplicate("b", 32)],
+  render_errors: [formats: [html: {AshDecisions.ErrorView, :render, []}], layout: false]
+
 config :ash, :validate_domain_resource_inclusion?, false
 config :ash, :validate_domain_config_inclusion?, false
 config :ash, disable_async?: true

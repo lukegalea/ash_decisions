@@ -73,6 +73,23 @@ defmodule AshDecisions.Scope do
   end
 
   @doc """
+  A scope from a LiveView's assigns.
+
+  The two keys a Phoenix application already carries per request: `:current_user`
+  and `:current_tenant`. Reading them here rather than in each LiveView is what
+  keeps the editor's `use` macro free of any assumption about how the host names
+  its scope -- it names these two, and a host that names them differently maps
+  them once at mount.
+  """
+  @spec from_assigns(map()) :: t()
+  def from_assigns(assigns) when is_map(assigns) do
+    %__MODULE__{
+      actor: Map.get(assigns, :current_user),
+      tenant: Map.get(assigns, :current_tenant)
+    }
+  end
+
+  @doc """
   A scope from a changeset already in flight.
 
   For the reads a change or validation makes against its own resource. The
