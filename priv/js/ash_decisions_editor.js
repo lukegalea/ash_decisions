@@ -164,7 +164,14 @@ export const AshDecisionsEditor = {
         return;
       }
 
-      this._modeler.open(view).catch((err) => pushError(this, err));
+      // Fit after the view is open, not only after import. A view's viewer is created lazily
+      // on first open, so switching to the DRD gave a canvas that had never been fitted --
+      // visible as a diagram scrolled mostly out of frame with one half-drawn node in it,
+      // which reads as a rendering bug rather than a missing zoom.
+      this._modeler
+        .open(view)
+        .then(() => this._fit())
+        .catch((err) => pushError(this, err));
     });
 
     this.handleEvent('fit', () => this._fit());
