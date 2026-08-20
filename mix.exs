@@ -39,7 +39,10 @@ defmodule AshDecisions.MixProject do
       name: :ash_decisions,
       licenses: ["MIT"],
       maintainers: ["Luke Galea <luke@ideaforge.org>"],
-      files: ~w(lib priv/js documentation CHANGELOG.md LICENSE README.md
+      # Only paths that exist. `documentation/` and `CHANGELOG.md` were listed
+      # before either was written; Hex warns on a missing file rather than
+      # failing, so the list quietly described a package that was never built.
+      files: ~w(lib priv/js LICENSE README.md
         usage-rules.md mix.exs .formatter.exs),
       links: %{"GitHub" => "https://github.com/lukegalea/ash_decisions"}
     ]

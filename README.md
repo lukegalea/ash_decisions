@@ -27,9 +27,14 @@ and never decides; a business rule task hands the deciding to a decision.
 - **`AshDecisions.Scope`** and the generated authorization bypass, tenancy via `tenant?: true`,
   and `:base` for sitting on a host application's base resource.
 
-What does **not** exist yet: the evaluation facade that ties a published definition to the engine
-and writes the evaluation row, publish-time overlap and completeness analysis, and the dmn-js
-designer.
+What does **not** exist yet: **publish-time overlap and completeness analysis**. It is designed —
+the technique is finite-domain enumeration and interval algebra over S-FEEL unary tests, with the
+undecidable remainder carried as obligations re-checked at runtime — and none of it is built. The
+`simple_sat` dev dependency is declared for it and currently unused. Also absent: any way to
+evaluate a decision against sample inputs *from the editor*, so an author publishes without
+having watched the table fire; and `matched_rule_ids` is always empty, because
+`Boxic.DMN.evaluate/3` reports what a decision returned but not which rule produced it — a real
+hole in the audit story, and upstream.
 
 ## The engine is adopted, not written
 
@@ -40,13 +45,15 @@ project, and an independent run of the official conformance kit put Boxic at **9
 before any work of ours.
 
 What this package adds is everything the engine deliberately does not have: versioned
-immutable definitions, multitenancy, the authorization model, the audit trail, publish-time
-overlap and completeness analysis, and the designer.
+immutable definitions, multitenancy, the authorization model, the audit trail, and the dmn-js
+designer. Publish-time overlap and completeness analysis belongs on that list and is not on it
+yet — see above. Listing it here as though it shipped is exactly the drift this README should
+not have, and did.
 
 ## The conformance harness
 
 `priv/tck/` is the [DMN TCK](https://github.com/dmn-tck/tck) corpus, vendored unmodified at a
-pinned commit — 149 test groups across compliance levels 2 and 3, 3,495 asserted result
+pinned commit — 146 test groups across compliance levels 2 and 3, 3,495 asserted result
 nodes. See `priv/tck/ATTRIBUTION.md`; the corpus is share-alike licensed and hash-guarded.
 
 ```bash

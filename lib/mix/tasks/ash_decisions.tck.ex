@@ -33,6 +33,7 @@ defmodule Mix.Tasks.AshDecisions.Tck do
 
   use Mix.Task
 
+  alias AshDecisions.Tck.ExpectedFailures
   alias AshDecisions.Tck.Runner
 
   @switches [level: :keep, failures: :boolean, json: :string, downgrade: :boolean]
@@ -59,10 +60,11 @@ defmodule Mix.Tasks.AshDecisions.Tck do
     harness = Map.get(summary.by_outcome, :harness_error, 0)
 
     bad = for r <- results, r.outcome in [:failed, :model_error], is_nil(expected(r)), do: r
-    stale = stale_entries(results)
+    drifted = drifted_counts(results)
 
     Mix.shell().info(
-      "\nexpected failures: #{length(AshDecisions.Tck.ExpectedFailures.groups())} groups listed"
+      "\nexpected failures: #{length(ExpectedFailures.groups())} groups, " <>
+        "#{ExpectedFailures.total_expected()} result nodes"
     )
 
     cond do
@@ -76,16 +78,19 @@ defmodule Mix.Tasks.AshDecisions.Tck do
         #{bad |> Enum.map(&"  #{&1.level}/#{&1.group}/#{&1.case_id} #{&1.decision}: #{&1.detail}") |> Enum.take(15) |> Enum.join("\n")}
 
         Either fix the cause, or add the group to AshDecisions.Tck.ExpectedFailures with the
-        reason it cannot pass.
+        reason it cannot pass and the number of nodes that fail.
         """)
 
-      stale != [] ->
+      drifted != [] ->
         Mix.raise("""
-        DMN TCK: #{length(stale)} groups are listed as expected failures but now pass.
+        DMN TCK: #{length(drifted)} groups fail a different number of nodes than recorded.
 
-        #{stale |> Enum.map(fn {level, group} -> "  #{level}/#{group}" end) |> Enum.join("\n")}
+        #{drifted |> Enum.map(fn {level, group, expected, actual} -> "  #{level}/#{group}: recorded #{expected}, measured #{actual}#{verdict(expected, actual)}" end) |> Enum.join("\n")}
 
-        Delete them from AshDecisions.Tck.ExpectedFailures — the list may only shrink.
+        Fewer than recorded is progress: update the count in
+        AshDecisions.Tck.ExpectedFailures, or delete the entry if it reached zero.
+        More than recorded is a regression hiding behind an excuse -- the whole reason
+        these entries carry a count rather than blanket-excusing the group.
         """)
 
       true ->
@@ -93,17 +98,29 @@ defmodule Mix.Tasks.AshDecisions.Tck do
     end
   end
 
-  defp expected(r), do: AshDecisions.Tck.ExpectedFailures.reason(r.level, r.group)
+  defp expected(r), do: ExpectedFailures.reason(r.level, r.group)
 
-  defp stale_entries(results) do
-    outcomes =
-      Enum.group_by(results, &{&1.level, &1.group}, & &1.outcome)
+  defp verdict(expected, actual) when actual < expected, do: "  (progress)"
+  defp verdict(_expected, _actual), do: "  (REGRESSION)"
 
-    for key <- AshDecisions.Tck.ExpectedFailures.groups(),
-        seen = Map.get(outcomes, key),
-        is_list(seen),
-        Enum.all?(seen, &(&1 == :passed)),
-        do: key
+  # A listed group whose failing-node count has moved in either direction.
+  #
+  # This is what makes the excuse specific rather than blanket. Keying on the group alone
+  # excused every node in it: measured at the time this was written, 1,206 nodes to excuse 81
+  # real failures, with 1,086 of `0100-arithmetic`'s 1,087 riding along.
+  defp drifted_counts(results) do
+    actual =
+      results
+      |> Enum.group_by(&{&1.level, &1.group})
+      |> Map.new(fn {key, rs} -> {key, Enum.count(rs, &(&1.outcome != :passed))} end)
+
+    for {level, group} <- ExpectedFailures.groups(),
+        expected = ExpectedFailures.expected_count(level, group),
+        # A listed group the corpus no longer contains is reported by `tck.verify`, not here.
+        measured = Map.get(actual, {level, group}),
+        not is_nil(measured),
+        measured != expected,
+        do: {level, group, expected, measured}
   end
 
   defp report(summary) do
