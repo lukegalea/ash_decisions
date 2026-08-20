@@ -72,6 +72,10 @@ defmodule AshDecisions.Dmn.Profile do
   @executable_model "https://www.omg.org/spec/DMN/20230324/MODEL/"
   @executable_feel "https://www.omg.org/spec/DMN/20230324/FEEL/"
 
+  # DMN 1.3, which is the latest revision dmn-js's moddle understands. See `to_editable/1`.
+  @editable_model "https://www.omg.org/spec/DMN/20191111/MODEL/"
+  @editable_feel "https://www.omg.org/spec/DMN/20191111/FEEL/"
+
   @doc "The revision the engine executes, as a MODEL namespace URI."
   @spec executable_namespace() :: String.t()
   def executable_namespace, do: @executable_model
@@ -105,6 +109,42 @@ defmodule AshDecisions.Dmn.Profile do
       |> replace_all(@feel_namespaces, @executable_feel)
     end
   end
+
+  @doc """
+  Rewrites `xml`'s DMN namespaces to the revision **dmn-js** can open.
+
+  The mirror of `normalize/1`, and it exists because the incompatibility runs both ways. The
+  engine refuses anything that is not DMN 1.5; dmn-js's moddle knows nothing later than 1.3 and
+  reports `failed to parse document as <dmn:Definitions>` on a 1.5 document — a message that
+  names the element and not the cause.
+
+  So a baseline written in 1.5 for the engine is a baseline the editor cannot open, which is how
+  this was found: the decision editor rendered its own error panel over an empty canvas, on a
+  document that compiled and evaluated perfectly.
+
+  Neither direction touches storage. A definition holds whatever its author submitted, byte for
+  byte, and each consumer is handed the dialect it understands — `normalize/1` on the way to the
+  engine, this on the way to the editor. Rewriting on save instead would make the stored
+  document a function of which tool last opened it.
+
+  ## Why it is safe in this direction as well as the other
+
+  The rewrite is namespace-only. Between 1.3 and 1.5 the DMN *schema* gained elements, but every
+  construct this package compiles — `decisionTable`, `literalExpression`, `informationRequirement`,
+  and DMNDI — is spelled identically in both, so a document restricted to that subset means the
+  same thing under either namespace. A document using something 1.5 added would lose it here, and
+  that document is one the compiler already refuses by element id.
+  """
+  @spec to_editable(String.t()) :: String.t()
+  def to_editable(xml) when is_binary(xml) do
+    xml
+    |> replace_all([@executable_model | @model_namespaces], @editable_model)
+    |> replace_all([@executable_feel | @feel_namespaces], @editable_feel)
+  end
+
+  @doc "The revision the dmn-js editor can open, as a MODEL namespace URI."
+  @spec editable_namespace() :: String.t()
+  def editable_namespace, do: @editable_model
 
   defp replace_all(xml, from_list, to) do
     Enum.reduce(from_list, xml, fn from, acc -> String.replace(acc, from, to) end)

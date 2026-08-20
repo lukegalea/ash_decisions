@@ -289,7 +289,11 @@ defmodule AshDecisions.Web.EditorLive do
 
         socket
         |> assign(:definition, definition)
-        |> assign(:xml, definition.xml)
+        # `to_editable/1`, not the stored text. A baseline written in DMN 1.5 for the engine is
+        # one dmn-js cannot parse at all -- it reports `failed to parse document as
+        # <dmn:Definitions>` and renders nothing. Storage stays byte-for-byte what the author
+        # submitted; each consumer gets the dialect it reads.
+        |> assign(:xml, AshDecisions.Dmn.Profile.to_editable(definition.xml))
         |> assign(:errors, definition.errors || [])
         |> assign(:graph, definition.graph)
         |> assign(:latest_published, latest_published)
@@ -307,7 +311,7 @@ defmodule AshDecisions.Web.EditorLive do
           {:ok, updated} ->
             socket
             |> assign(:definition, updated)
-            |> assign(:xml, updated.xml)
+            |> assign(:xml, AshDecisions.Dmn.Profile.to_editable(updated.xml))
             |> assign(:errors, updated.errors || [])
             |> assign(:graph, updated.graph)
             |> assign(:dirty, false)
