@@ -69,12 +69,30 @@ defmodule AshDecisions.Dmn.Profile do
     "https://www.omg.org/spec/DMN/20211108/FEEL/"
   ]
 
+  # Diagram interchange. A separate namespace family from MODEL and FEEL, and one that has to
+  # be rewritten alongside them: a document declaring a 1.5 MODEL and a 1.3 DMNDI fails schema
+  # validation, and one declaring a 1.3 MODEL with a 1.5 DMNDI hands dmn-js a layout it cannot
+  # read -- which presents as a DRD drawn with none of its nodes in it, not as an error.
+  #
+  # DC and DI are deliberately absent: both have been stable at 20180521 since DMN 1.2, so
+  # there is nothing to rewrite.
+  @dmndi_namespaces [
+    "http://www.omg.org/spec/DMN/20180521/DMNDI/",
+    "https://www.omg.org/spec/DMN/20180521/DMNDI/",
+    "http://www.omg.org/spec/DMN/20191111/DMNDI/",
+    "https://www.omg.org/spec/DMN/20191111/DMNDI/",
+    "http://www.omg.org/spec/DMN/20211108/DMNDI/",
+    "https://www.omg.org/spec/DMN/20211108/DMNDI/"
+  ]
+
   @executable_model "https://www.omg.org/spec/DMN/20230324/MODEL/"
   @executable_feel "https://www.omg.org/spec/DMN/20230324/FEEL/"
+  @executable_dmndi "https://www.omg.org/spec/DMN/20230324/DMNDI/"
 
   # DMN 1.3, which is the latest revision dmn-js's moddle understands. See `to_editable/1`.
   @editable_model "https://www.omg.org/spec/DMN/20191111/MODEL/"
   @editable_feel "https://www.omg.org/spec/DMN/20191111/FEEL/"
+  @editable_dmndi "https://www.omg.org/spec/DMN/20191111/DMNDI/"
 
   @doc "The revision the engine executes, as a MODEL namespace URI."
   @spec executable_namespace() :: String.t()
@@ -107,6 +125,7 @@ defmodule AshDecisions.Dmn.Profile do
       xml
       |> replace_all(@model_namespaces, @executable_model)
       |> replace_all(@feel_namespaces, @executable_feel)
+      |> replace_all(@dmndi_namespaces, @executable_dmndi)
     end
   end
 
@@ -140,6 +159,7 @@ defmodule AshDecisions.Dmn.Profile do
     xml
     |> replace_all([@executable_model | @model_namespaces], @editable_model)
     |> replace_all([@executable_feel | @feel_namespaces], @editable_feel)
+    |> replace_all([@executable_dmndi | @dmndi_namespaces], @editable_dmndi)
   end
 
   @doc "The revision the dmn-js editor can open, as a MODEL namespace URI."

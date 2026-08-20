@@ -24,6 +24,8 @@ defmodule AshDecisions.DmnProfileTest do
   <?xml version="1.0" encoding="UTF-8"?>
   <definitions xmlns="https://www.omg.org/spec/DMN/20230324/MODEL/"
                xmlns:feel="https://www.omg.org/spec/DMN/20230324/FEEL/"
+               xmlns:dmndi="https://www.omg.org/spec/DMN/20230324/DMNDI/"
+               xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
                id="Definitions_1" name="risk" namespace="urn:test">
     <decision id="Decision_1" name="Risk">
       <decisionTable id="DT_1" hitPolicy="FIRST">
@@ -35,6 +37,13 @@ defmodule AshDecisions.DmnProfileTest do
         </rule>
       </decisionTable>
     </decision>
+    <dmndi:DMNDI>
+      <dmndi:DMNDiagram id="Diagram_1">
+        <dmndi:DMNShape id="Shape_1" dmnElementRef="Decision_1">
+          <dc:Bounds height="80" width="180" x="160" y="100"/>
+        </dmndi:DMNShape>
+      </dmndi:DMNDiagram>
+    </dmndi:DMNDI>
   </definitions>
   """
 
@@ -45,6 +54,19 @@ defmodule AshDecisions.DmnProfileTest do
       assert editable =~ Profile.editable_namespace()
       refute editable =~ Profile.executable_namespace()
       refute editable =~ "20230324"
+    end
+
+    test "rewrites DMNDI as well, because the layout is a separate namespace family" do
+      # Missed, this hands dmn-js a 1.3 MODEL carrying a 1.5 DMNDI. dmn-js does not
+      # error: it draws the DRD with none of its nodes in it, which reads as an
+      # empty diagram rather than as an unread layout. That is how it was found.
+      editable = Profile.to_editable(@dmn_15)
+
+      assert editable =~ "https://www.omg.org/spec/DMN/20191111/DMNDI/"
+      refute editable =~ "20230324/DMNDI"
+
+      # DC has been stable since DMN 1.2, so it must be left exactly as it is.
+      assert editable =~ "http://www.omg.org/spec/DMN/20180521/DC/"
     end
 
     test "rewrites the FEEL namespace too, not just MODEL" do

@@ -13,10 +13,26 @@
   height: 100%;
   min-height: 32rem;
   width: 100%;
-  overflow: auto;
 }
 
-/* The decision table wants to fill its parent; the DRD wants to be scrolled. */
+/* The DRD view is a diagram-js canvas and its palette is absolutely positioned
+ * against it, so `overflow: auto` on the container clipped the palette at the
+ * container's edge -- visible as a tool palette with its lower half cut off.
+ * The canvas does its own panning and zooming, so it wants no scrollbars at all;
+ * the table views, which really are wider than the page, get their own. */
+.ash-decisions-canvas .dmn-drd-container,
+.ash-decisions-canvas .djs-container {
+  height: 100%;
+  min-height: 32rem;
+  overflow: visible;
+}
+
+.ash-decisions-canvas .dmn-decision-table-container,
+.ash-decisions-canvas .dmn-literal-expression-container {
+  overflow-x: auto;
+}
+
+/* Breathing room around the table, which dmn-js draws flush to its container. */
 .ash-decisions-canvas .dmn-decision-table-container,
 .ash-decisions-canvas .dmn-literal-expression-container {
   padding: 1rem;
