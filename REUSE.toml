@@ -1,0 +1,45 @@
+version = 1
+
+# The vendored DMN TCK corpus is frozen third-party content — see
+# priv/tck/ATTRIBUTION.md. Its files must stay byte-identical to the pinned
+# upstream commit (a licence obligation as well as a conformance one), so
+# their licensing is declared here rather than in headers written into the
+# files.
+
+[[annotations]]
+path = "priv/tck/compliance-level-*/**"
+precedence = "aggregate"
+SPDX-FileCopyrightText = "DMN Technology Compatibility Kit contributors"
+SPDX-License-Identifier = "CC-BY-SA-4.0"
+
+[[annotations]]
+path = "priv/tck/testCases.xsd"
+precedence = "aggregate"
+SPDX-FileCopyrightText = "DMN Technology Compatibility Kit contributors"
+SPDX-License-Identifier = "Apache-2.0"
+
+[[annotations]]
+path = "priv/tck/LICENSE-ASL-2.0.txt"
+precedence = "aggregate"
+SPDX-FileCopyrightText = "Apache Software Foundation"
+SPDX-License-Identifier = "Apache-2.0"
+
+# Ours: the attribution note, the commit pointer and the hash manifest that
+# `mix ash_decisions.tck.verify` checks. None of them are upstream content.
+[[annotations]]
+path = "priv/tck/ATTRIBUTION.md"
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 Luke Galea"
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = "priv/tck/PINNED_COMMIT"
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 Luke Galea"
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = "priv/tck/VENDORED_FILES.sha256"
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 Luke Galea"
+SPDX-License-Identifier = "MIT"

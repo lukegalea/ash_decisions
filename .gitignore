@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Luke Galea
+#
+# SPDX-License-Identifier: MIT
+
 /_build/
 /cover/
 /deps/
@@ -12,3 +16,5 @@ erl_crash.dump
 devenv.local.nix
 .direnv
 /artifacts/
+
+/priv/plts/

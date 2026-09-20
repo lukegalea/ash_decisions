@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Luke Galea
+#
+# SPDX-License-Identifier: MIT
+
 defmodule AshDecisions.TestRepo.Migrations.CreateDecisionResources do
   @moduledoc false
 

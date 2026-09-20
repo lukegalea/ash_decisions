@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Luke Galea
+#
+# SPDX-License-Identifier: MIT
+
 defmodule AshDecisions.TestRepo.Migrations.CreateTenantDecisionResources do
   @moduledoc """
   A second, tenant-scoped copy of the decision tables.

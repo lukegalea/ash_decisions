@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Luke Galea
+#
+# SPDX-License-Identifier: MIT
+
 defmodule AshDecisions.TestRepo.Migrations.AddVerificationToDecisionResources do
   @moduledoc """
   The publish-time verification result, stored beside the compile errors it

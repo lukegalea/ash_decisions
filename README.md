@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2026 Luke Galea
+
+SPDX-License-Identifier: MIT
+-->
+
 # AshDecisions
 
 **Business rules as versioned, tenant-scoped, auditable Ash resources — expressed in DMN.**

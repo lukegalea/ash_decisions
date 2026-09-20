@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Luke Galea
+#
+# SPDX-License-Identifier: MIT
+
 import Config
 
 # The test repo. Postgres connection details come from the environment so both

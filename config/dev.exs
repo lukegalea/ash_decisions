@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Luke Galea
+#
+# SPDX-License-Identifier: MIT
+
 import Config
 
 # `mix ash_decisions.tck` runs in :dev and touches no database, so this exists
