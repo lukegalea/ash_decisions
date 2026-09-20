@@ -120,6 +120,35 @@ defmodule AshDecisions.FeelTest do
     end
   end
 
+  describe "split_unary_tests/1" do
+    test "splits on top-level commas and trims the parts" do
+      assert Feel.split_unary_tests(~s|"a", "b"|) == [~s|"a"|, ~s|"b"|]
+      assert Feel.split_unary_tests(" 1 ,  2 ") == ["1", "2"]
+    end
+
+    test "leaves commas inside string literals alone" do
+      assert Feel.split_unary_tests(~s|"a, b"|) == [~s|"a, b"|]
+    end
+
+    test "an empty cell is one wildcard, the same answer evaluation gives" do
+      assert Feel.split_unary_tests("") == ["-"]
+      assert Feel.split_unary_tests("   ") == ["-"]
+    end
+
+    test "split_unary_tests_with_offsets/1 carries byte offsets into the original cell" do
+      assert [{0, "\"a\""}, {5, ">="}] = Feel.split_unary_tests_with_offsets("\"a\", >=")
+      assert [{0, "1"}, {5, "22"}] = Feel.split_unary_tests_with_offsets("1,   22")
+    end
+
+    test "the offsets version and the plain version split identically" do
+      for cell <- [~s|"a", "b"|, "not(>= 5)", "[1..5), 7", "-"] do
+        plain = Feel.split_unary_tests(cell)
+        offset = Feel.split_unary_tests_with_offsets(cell) |> Enum.map(&elem(&1, 1))
+        assert plain == offset
+      end
+    end
+  end
+
   describe "print/1" do
     test "renders engine values as the FEEL that would produce them" do
       assert Feel.print(nil) == "null"

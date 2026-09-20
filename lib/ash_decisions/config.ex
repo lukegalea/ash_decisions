@@ -105,4 +105,35 @@ defmodule AshDecisions.Config do
   def feel_cache_limit do
     Application.get_env(:ash_decisions, :feel_cache_limit, 4096)
   end
+
+  @doc """
+  Maximum number of regions the publish-time decision table analysis will build
+  (default `100_000`).
+
+  Overlap and completeness are computed over the product of the per-column
+  regions — every enumerated value or interval between bounds is one region. A
+  table with many wide enumerated columns has a product that is large but not
+  interesting, so a table whose product exceeds the cap yields a
+  `:region_cap` proof obligation instead of findings: the analysis says what it
+  could not decide rather than either guessing or burning the node.
+  """
+  @spec verification_max_regions() :: pos_integer()
+  def verification_max_regions do
+    Application.get_env(:ash_decisions, :verification_max_regions, 100_000)
+  end
+
+  @doc """
+  Whether an incomplete decision table is a `:warning` (default) or an `:error`.
+
+  A table with no matching rule and no default output entry returns `null`, and
+  `null` is not an error anywhere in the stack — it is the invisible failure
+  `AshDecisions.Verifier` exists to make visible. Partial tables that lean on a
+  downstream default are nonetheless a legitimate, common pattern, which is why
+  the default is a warning; a compliance program that needs total tables sets
+  this to `:error` and `VerificationClean` then refuses the publish.
+  """
+  @spec incomplete_tables() :: :warn | :error
+  def incomplete_tables do
+    Application.get_env(:ash_decisions, :incomplete_tables, :warn)
+  end
 end

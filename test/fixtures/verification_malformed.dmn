@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20230324/MODEL/"
+             id="malformed_definitions"
+             name="Typo'd tier"
+             namespace="https://ash-decisions.test/malformed"
+             expressionLanguage="https://www.omg.org/spec/DMN/20230324/FEEL/"
+             typeLanguage="https://www.omg.org/spec/DMN/20230324/FEEL/">
+  <inputData id="input_customer_tier" name="customerTier">
+    <variable id="var_customer_tier" name="customerTier" typeRef="string"/>
+  </inputData>
+  <decision id="decision_typo" name="Typo'd tier">
+    <variable id="var_handling" name="Handling" typeRef="string"/>
+    <informationRequirement id="req_tier">
+      <requiredInput href="#input_customer_tier"/>
+    </informationRequirement>
+    <decisionTable id="table_typo" hitPolicy="UNIQUE" outputLabel="Handling">
+      <input id="clause_tier" label="Customer tier">
+        <inputExpression id="expr_tier" typeRef="string">
+          <text>customerTier</text>
+        </inputExpression>
+      </input>
+      <output id="clause_handling" name="handling" label="Handling" typeRef="string"/>
+      <rule id="rule_gold">
+        <inputEntry id="rule_gold_0"><text>"gold"</text></inputEntry>
+        <outputEntry id="rule_gold_1"><text>"priority"</text></outputEntry>
+      </rule>
+      <rule id="rule_typo">
+        <inputEntry id="rule_typo_0"><text>"silver</text></inputEntry>
+        <outputEntry id="rule_typo_1"><text>"standard"</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

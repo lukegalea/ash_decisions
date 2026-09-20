@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20230324/MODEL/"
+             id="opaque_definitions"
+             name="Regex tier"
+             namespace="https://ash-decisions.test/opaque"
+             expressionLanguage="https://www.omg.org/spec/DMN/20230324/FEEL/"
+             typeLanguage="https://www.omg.org/spec/DMN/20230324/FEEL/">
+  <inputData id="input_customer_tier" name="customerTier">
+    <variable id="var_customer_tier" name="customerTier" typeRef="string"/>
+  </inputData>
+  <decision id="decision_regex" name="Regex tier">
+    <variable id="var_handling" name="Handling" typeRef="string"/>
+    <informationRequirement id="req_tier">
+      <requiredInput href="#input_customer_tier"/>
+    </informationRequirement>
+    <decisionTable id="table_regex" hitPolicy="UNIQUE" outputLabel="Handling">
+      <input id="clause_tier" label="Customer tier">
+        <inputExpression id="expr_tier" typeRef="string">
+          <text>customerTier</text>
+        </inputExpression>
+      </input>
+      <output id="clause_handling" name="handling" label="Handling" typeRef="string"/>
+      <rule id="rule_g_tier">
+        <inputEntry id="rule_g_tier_0"><text>upper_case(customerTier) = "GOLD"</text></inputEntry>
+        <outputEntry id="rule_g_tier_1"><text>"priority"</text></outputEntry>
+      </rule>
+      <rule id="rule_other">
+        <inputEntry id="rule_other_0"><text>-</text></inputEntry>
+        <outputEntry id="rule_other_1"><text>"standard"</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

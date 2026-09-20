@@ -78,8 +78,9 @@ defmodule AshDecisions.Compiler do
   the size bound and within the depth bound. Decision table **input entries** are
   the exception: they are unary tests, a separate grammar that Boxic parses
   inside its evaluator rather than exposing a parser for, so they are size-bounded
-  here and validated when they first run. That limit is stated rather than
-  papered over.
+  here and parsed instead by `AshDecisions.Verification.Constraint` at publish
+  time, in `AshDecisions.Verifier`. That limit is stated rather than papered
+  over.
   """
 
   alias AshDecisions.Tck.Xml
@@ -578,7 +579,8 @@ defmodule AshDecisions.Compiler do
             "id" => id_of(input),
             "label" => clause_label(input),
             "expression" => input |> Xml.child("inputExpression") |> literal_text(),
-            "type_ref" => input |> Xml.child("inputExpression") |> attr_or_nil("typeRef")
+            "type_ref" => input |> Xml.child("inputExpression") |> attr_or_nil("typeRef"),
+            "input_values" => input_values(input)
           }
         end),
       "outputs" =>
@@ -662,6 +664,40 @@ defmodule AshDecisions.Compiler do
   defp spaced(policy), do: String.replace(policy, "_", " ")
 
   defp clause_label(clause), do: Xml.attr(clause, "label") || Xml.attr(clause, "name")
+
+  # The enumerated domain an author declared for an input clause. Most tools
+  # write it as an `inputValues` child element; the attribute form is accepted
+  # too, because a snapshot that misses a declared domain quietly weakens the
+  # publish-time analysis that needs one. Items are comma-separated FEEL
+  # literals in the usual authoring (`"High", "Low", "Medium"`), so each is
+  # parsed through the seam and a value that is not a literal is kept as its
+  # raw text rather than dropped.
+  defp input_values(input) do
+    # Like every FEEL-bearing element, the values live in a `<text>` child.
+    text = input_values_text(input)
+
+    if String.trim(text) == "" do
+      []
+    else
+      text
+      |> AshDecisions.Feel.split_unary_tests()
+      |> Enum.map(&input_value/1)
+    end
+  end
+
+  defp input_values_text(input) do
+    case Xml.child(input, "inputValues") do
+      nil -> Xml.attr(input, "inputValues") || ""
+      el -> el |> Xml.child("text") |> Xml.text()
+    end
+  end
+
+  defp input_value(item) do
+    case AshDecisions.Feel.parse(item) do
+      {:ok, {:literal, value}} -> value
+      _other -> item
+    end
+  end
 
   # Every FEEL-bearing element in DMN -- an inputExpression, an inputEntry, an
   # outputEntry, a literalExpression -- carries its source in a `<text>` child.

@@ -38,7 +38,11 @@ defmodule AshDecisions.Resources.Definition do
   write, so a draft always carries the truth about whether it compiles; refusing
   to publish over a non-empty `errors` means a published definition is one the
   compiler accepted, and every caller downstream can rely on that without
-  re-checking.
+  re-checking. Beside `errors` sits `verification` — the publish-time analysis
+  from `AshDecisions.Verifier`. It never blocks on what it could not decide, and
+  blocks only on error-severity findings: `VerificationClean` runs after
+  `ErrorsEmpty` and refuses, say, a `UNIQUE` table whose rules can both fire, or
+  an input entry the engine cannot parse.
 
   ## Code interfaces (generated on the host module)
 
@@ -156,6 +160,16 @@ defmodule AshDecisions.Resources.Definition do
           public?(true)
         end
 
+        # The publish-time verification result: findings (proved overlaps, gaps,
+        # dead rules) and obligations (what could not be decided), from
+        # `AshDecisions.Verifier`. A sibling of `errors` rather than an addition
+        # to it — `errors` means compiler errors and must keep meaning exactly
+        # that — and `VerificationClean`, not `ErrorsEmpty`, is what turns the
+        # error-severity half of it into a publish refusal.
+        attribute :verification, :map do
+          public?(true)
+        end
+
         attribute :content_hash, :string do
           allow_nil?(false)
           public?(true)
@@ -195,6 +209,7 @@ defmodule AshDecisions.Resources.Definition do
           change(AshDecisions.Resources.Definition.AssignVersion)
           change(AshDecisions.Resources.Definition.ComputeHash)
           change(AshDecisions.Resources.Definition.CompileXml)
+          change(AshDecisions.Resources.Definition.VerifyGraph)
           validate(AshDecisions.Resources.Definition.UniqueDraftCheck)
         end
 
@@ -205,6 +220,7 @@ defmodule AshDecisions.Resources.Definition do
           validate(AshDecisions.Resources.Definition.StatusIsDraft)
           change(AshDecisions.Resources.Definition.ComputeHash)
           change(AshDecisions.Resources.Definition.CompileXml)
+          change(AshDecisions.Resources.Definition.VerifyGraph)
         end
 
         update :publish do
@@ -213,6 +229,7 @@ defmodule AshDecisions.Resources.Definition do
 
           validate(AshDecisions.Resources.Definition.StatusIsDraft)
           validate(AshDecisions.Resources.Definition.ErrorsEmpty)
+          validate(AshDecisions.Resources.Definition.VerificationClean)
           change(set_attribute(:status, :published))
         end
 
@@ -356,6 +373,85 @@ defmodule AshDecisions.Resources.Definition.ErrorsEmpty do
       {:error, field: :errors, message: "cannot publish a definition with compile errors"}
     end
   end
+end
+
+defmodule AshDecisions.Resources.Definition.VerifyGraph do
+  @moduledoc false
+  use Ash.Resource.Change
+
+  @impl true
+  def change(changeset, _opts, _context) do
+    cond do
+      # Verification is meaningful only for a document that compiles. When the
+      # compiler refused, `errors` is what stops the publish; a stale
+      # verification stored beside it would claim more than it knows.
+      Ash.Changeset.get_attribute(changeset, :errors) not in [nil, []] ->
+        Ash.Changeset.change_attribute(changeset, :verification, nil)
+
+      is_map(Ash.Changeset.get_attribute(changeset, :graph)) ->
+        verification =
+          changeset
+          |> Ash.Changeset.get_attribute(:graph)
+          |> AshDecisions.Verifier.verify()
+          |> AshDecisions.Verifier.to_storage()
+
+        Ash.Changeset.change_attribute(changeset, :verification, verification)
+
+      true ->
+        changeset
+    end
+  end
+end
+
+defmodule AshDecisions.Resources.Definition.VerificationClean do
+  @moduledoc false
+  use Ash.Resource.Validation
+
+  # Refuses only on error-severity findings, and only after `ErrorsEmpty` has had
+  # its say. Warnings and obligations are stored and surfaced, never blocking:
+  # an undecidable table is a fact an auditor reads, not a publish the author
+  # cannot make.
+
+  @impl true
+  def validate(changeset, _opts, _context) do
+    verification =
+      Ash.Changeset.get_attribute(changeset, :verification) || stored_verification(changeset)
+
+    verification
+    |> error_findings()
+    |> case do
+      [] ->
+        :ok
+
+      [first | rest] ->
+        {:error,
+         field: :verification,
+         message:
+           "cannot publish: verification found #{length(rest) + 1} error finding(s); " <>
+             "the first, at [#{first["path"]}]: #{first["message"]}"}
+    end
+  end
+
+  # A draft saved before verification existed carries no stored result.
+  # Verifying on the fly keeps such drafts publishable without quietly lowering
+  # what publish means.
+  defp stored_verification(changeset) do
+    case Ash.Changeset.get_attribute(changeset, :graph) do
+      %{} = graph ->
+        graph |> AshDecisions.Verifier.verify() |> AshDecisions.Verifier.to_storage()
+
+      _ ->
+        nil
+    end
+  end
+
+  defp error_findings(nil), do: []
+
+  defp error_findings(%{"findings" => findings}) when is_list(findings) do
+    Enum.filter(findings, &(&1["severity"] == "error"))
+  end
+
+  defp error_findings(_other), do: []
 end
 
 defmodule AshDecisions.Resources.Definition.UniqueDraftCheck do

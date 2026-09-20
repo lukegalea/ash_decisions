@@ -22,19 +22,23 @@ and never decides; a business rule task hands the deciding to a decision.
   outputs, which rules matched, how long it took, and the failure when there was one.
 - **`AshDecisions.Compiler`** — DMN in, immutable JSON snapshot out, with an explicit list of
   constructs it refuses by element id rather than skipping quietly.
+- **`AshDecisions.Verifier`** — publish-time verification over the compiled snapshot: it lowers
+  every decision table input entry into a constraint (which is also the first time input entries
+  are parsed at all — a typo in a cell is now a publish blocker, not a runtime surprise), then
+  proves what it can about a table and records what it could not. Proved: overlapping rules
+  under `UNIQUE`/`ANY`, gaps in the input space, rules that can never fire, `FIRST` rules an
+  earlier rule subsumes. Could not be decided: an `:opaque` cell, an untyped column, a product
+  past the region cap — recorded as first-class obligations, never reported as clean and never
+  blocking a publish. Only error-severity findings stop publication.
 - **`AshDecisions.Feel`** — the single module that touches the FEEL engine, with a killed-process
   timeout and size and depth bounds on every tenant-authored expression.
 - **`AshDecisions.Scope`** and the generated authorization bypass, tenancy via `tenant?: true`,
   and `:base` for sitting on a host application's base resource.
 
-What does **not** exist yet: **publish-time overlap and completeness analysis**. It is designed —
-the technique is finite-domain enumeration and interval algebra over S-FEEL unary tests, with the
-undecidable remainder carried as obligations re-checked at runtime — and none of it is built. The
-`simple_sat` dev dependency is declared for it and currently unused. Also absent: any way to
-evaluate a decision against sample inputs *from the editor*, so an author publishes without
-having watched the table fire; and `matched_rule_ids` is always empty, because
-`Boxic.DMN.evaluate/3` reports what a decision returned but not which rule produced it — a real
-hole in the audit story, and upstream.
+What does **not** exist yet: any way to evaluate a decision against sample inputs *from the
+editor*, so an author publishes without having watched the table fire; and `matched_rule_ids` is
+always empty, because `Boxic.DMN.evaluate/3` reports what a decision returned but not which rule
+produced it — a real hole in the audit story, and upstream.
 
 ## The engine is adopted, not written
 
@@ -45,10 +49,8 @@ project, and an independent run of the official conformance kit put Boxic at **9
 before any work of ours.
 
 What this package adds is everything the engine deliberately does not have: versioned
-immutable definitions, multitenancy, the authorization model, the audit trail, and the dmn-js
-designer. Publish-time overlap and completeness analysis belongs on that list and is not on it
-yet — see above. Listing it here as though it shipped is exactly the drift this README should
-not have, and did.
+immutable definitions, multitenancy, the authorization model, the audit trail, publish-time
+verification, and the dmn-js designer.
 
 ## The conformance harness
 

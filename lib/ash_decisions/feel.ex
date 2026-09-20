@@ -143,17 +143,8 @@ defmodule AshDecisions.Feel do
   Unary tests are their own grammar (`< 10`, `"a", "b"`, `[1..5]`, `-`) and Boxic
   parses them inside its evaluator rather than exposing a parser for them. They
   therefore do not go through the parse cache, and the size bound is applied here
-  directly. `AshDecisions.Compiler` says the same thing from the other side: it
-  can prove a rule's *output* entries parse at publish time, and it cannot prove
-  that of the input entries.
-
-  One cell is a comma-separated **disjunction** of tests, so `"gold", "silver"`
-  matches either. Boxic's `evaluate_unary_test/3` is the single-test primitive
-  and does not split; the splitting lives in `boxic_dmn`'s decision table. It is
-  reimplemented here — carefully, on top-level commas only, so a comma inside a
-  string literal is left alone — because a seam that answered a decision table
-  cell differently from the way the engine answers it would be worse than no seam
-  at all.
+  directly. `AshDecisions.Verification.Constraint` is what parses them at publish
+  time instead, which is why the splitter below is public.
   """
   @spec evaluate_unary_test(String.t(), term(), map(), keyword()) ::
           {:ok, boolean()} | {:error, error()}
@@ -177,18 +168,73 @@ defmodule AshDecisions.Feel do
     end
   end
 
-  # A comma at the top level separates tests; a comma inside a string literal
-  # does not. An empty cell is the same thing as `-`: it matches anything.
-  defp split_unary_tests(text) do
+  @split_regex ~r/,(?=(?:[^"]*"[^"]*")*[^"]*$)/
+
+  @doc """
+  Splits a decision table cell into its top-level comma-separated unary tests.
+
+  One cell is a comma-separated **disjunction** of tests, so `"gold", "silver"`
+  matches either. Boxic's `evaluate_unary_test/3` is the single-test primitive
+  and does not split; the splitting lives in `boxic_dmn`'s decision table. It is
+  reimplemented here — carefully, on top-level commas only, so a comma inside a
+  string literal is left alone — because a seam that answered a decision table
+  cell differently from the way the engine answers it would be worse than no seam
+  at all. An empty cell is the same thing as `-`: it matches anything.
+
+  Public because `AshDecisions.Verification.Constraint` must lower a cell into a
+  constraint by splitting it exactly the way evaluation splits it; a recognizer
+  with its own splitter would be the divergence this function exists to prevent.
+  """
+  @spec split_unary_tests(String.t()) :: [String.t()]
+  def split_unary_tests(text) when is_binary(text) do
     case String.trim(text) do
       "" ->
         ["-"]
 
-      trimmed ->
-        ~r/,(?=(?:[^"]*"[^"]*")*[^"]*$)/
-        |> Regex.split(trimmed, trim: true)
-        |> Enum.map(&String.trim/1)
+      _trimmed ->
+        text
+        |> split_unary_tests_with_offsets()
+        |> Enum.map(&elem(&1, 1))
     end
+  end
+
+  @doc """
+  Like `split_unary_tests/1`, but each part carries the **byte offset** at which
+  it starts in the original cell.
+
+  Offsets are what a publish-time finding needs in order to point at the part of
+  a cell that failed to lower — `"a", "bogus(` fails at the second part, and the
+  author should be told that rather than handed the whole cell again. Offsets are
+  bytes, not codepoints; they are diagnostic positions, not string indices.
+  """
+  @spec split_unary_tests_with_offsets(String.t()) :: [{non_neg_integer(), String.t()}]
+  def split_unary_tests_with_offsets(text) when is_binary(text) do
+    case String.trim(text) do
+      "" ->
+        [{0, "-"}]
+
+      trimmed ->
+        leading = byte_size(text) - byte_size(String.trim_leading(text))
+        do_split(trimmed, leading, [])
+    end
+  end
+
+  defp do_split(rest, cursor, acc) do
+    case Regex.run(@split_regex, rest, return: :index) do
+      [{at, _} | _] ->
+        head = binary_part(rest, 0, at)
+
+        tail = binary_part(rest, at + 1, byte_size(rest) - at - 1)
+        do_split(tail, cursor + at + 1, [part(head, cursor) | acc])
+
+      nil ->
+        Enum.reverse(acc, [part(rest, cursor)])
+    end
+  end
+
+  defp part(raw, cursor) do
+    trimmed = String.trim_leading(raw)
+    {cursor + (byte_size(raw) - byte_size(trimmed)), String.trim_trailing(trimmed)}
   end
 
   @doc """

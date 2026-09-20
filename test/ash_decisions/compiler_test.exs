@@ -46,6 +46,14 @@ defmodule AshDecisions.CompilerTest do
       assert rule["output_entries"] == ["0.15"]
     end
 
+    test "snapshots the enumerated domain an input declares, parsed to values" do
+      assert {:ok, graph} = Compiler.compile(fixture("verification_enum"))
+
+      [tier] = graph["decisions"]["decision_handling"]["inputs"]
+
+      assert tier["input_values"] == ["gold", "silver", "bronze"]
+    end
+
     test "the snapshot is JSON, because it has to survive a round trip through a column" do
       assert {:ok, graph} = Compiler.compile(fixture("discount"))
       assert {:ok, encoded} = Jason.encode(graph)
