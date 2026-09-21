@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Luke Galea
+#
+# SPDX-License-Identifier: MIT
+
 defmodule AshDecisions.Verification.Finding do
   @moduledoc """
   Something the verifier **proved** about a decision table.

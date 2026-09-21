@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Luke Galea
+#
+# SPDX-License-Identifier: MIT
+
 defmodule AshDecisions do
   @moduledoc """
   DMN decisions as versioned, tenant-scoped, auditable Ash resources.

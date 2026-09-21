@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Luke Galea
+#
+# SPDX-License-Identifier: MIT
+
 defmodule AshDecisions.Dmn.Profile do
   @moduledoc """
   Brings a DMN document to the specification revision the engine executes.

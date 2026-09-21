@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Luke Galea
+#
+# SPDX-License-Identifier: MIT
+
 defmodule AshDecisions.BaseTest.Resource do
   @moduledoc """
   A stand-in for a host application's base resource — the awkward variety.

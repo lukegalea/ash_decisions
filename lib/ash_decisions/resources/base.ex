@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Luke Galea
+#
+# SPDX-License-Identifier: MIT
+
 defmodule AshDecisions.Resources.Base do
   @moduledoc """
   Resolves what the resource macros should `use`.

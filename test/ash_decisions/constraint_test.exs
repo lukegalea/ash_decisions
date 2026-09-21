@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Luke Galea
+#
+# SPDX-License-Identifier: MIT
+
 defmodule AshDecisions.Verification.ConstraintTest do
   @moduledoc """
   What the recognizer lowers, and — the load-bearing half — what it refuses to

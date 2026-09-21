@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Luke Galea
+#
+# SPDX-License-Identifier: MIT
+
 defmodule AshDecisions.Feel do
   @moduledoc """
   The FEEL seam: the only module in this package that calls `Boxic.FEEL`.
@@ -91,6 +95,8 @@ defmodule AshDecisions.Feel do
   """
   @type error :: %{code: atom(), message: String.t()}
 
+  alias Boxic.FEEL.Duration
+
   @cache_count_key {__MODULE__, :cache_count}
 
   @doc """
@@ -111,16 +117,17 @@ defmodule AshDecisions.Feel do
     key = cache_key(source)
 
     case cache? && cache_get(key) do
-      {:ok, ast} ->
-        {:ok, ast}
+      {:ok, ast} -> {:ok, ast}
+      _ -> parse_uncached(source, opts, key, cache?)
+    end
+  end
 
-      _ ->
-        with :ok <- check_size(source, opts),
-             {:ok, ast} <- do_parse(source, opts),
-             :ok <- check_depth(ast, opts) do
-          if cache?, do: cache_put(key, ast)
-          {:ok, ast}
-        end
+  defp parse_uncached(source, opts, key, cache?) do
+    with :ok <- check_size(source, opts),
+         {:ok, ast} <- do_parse(source, opts),
+         :ok <- check_depth(ast, opts) do
+      if cache?, do: cache_put(key, ast)
+      {:ok, ast}
     end
   end
 
@@ -157,15 +164,22 @@ defmodule AshDecisions.Feel do
       bounded(opts, fn ->
         test
         |> split_unary_tests()
-        |> Enum.reduce_while({:ok, false}, fn one, {:ok, false} ->
-          case Boxic.FEEL.evaluate_unary_test(one, value, context) do
-            {:ok, true} -> {:halt, {:ok, true}}
-            {:ok, false} -> {:cont, {:ok, false}}
-            {:error, _} = error -> {:halt, error}
-          end
-        end)
+        |> run_unary_tests(value, context)
       end)
     end
+  end
+
+  # A cell's parts are a disjunction: the first part that matches answers true,
+  # a part the engine cannot parse is the whole cell's answer, and a cell whose
+  # every part matched nothing is false.
+  defp run_unary_tests(parts, value, context) do
+    Enum.reduce_while(parts, {:ok, false}, fn one, {:ok, false} ->
+      case Boxic.FEEL.evaluate_unary_test(one, value, context) do
+        {:ok, true} -> {:halt, {:ok, true}}
+        {:ok, false} -> {:cont, {:ok, false}}
+        {:error, _} = error -> {:halt, error}
+      end
+    end)
   end
 
   @split_regex ~r/,(?=(?:[^"]*"[^"]*")*[^"]*$)/
@@ -278,7 +292,7 @@ defmodule AshDecisions.Feel do
   def to_feel_value(%NaiveDateTime{} = value, _depth), do: value
   def to_feel_value(%Boxic.FEEL.Time{} = value, _depth), do: value
   def to_feel_value(%Boxic.FEEL.DateTime{} = value, _depth), do: value
-  def to_feel_value(%Boxic.FEEL.Duration{} = value, _depth), do: value
+  def to_feel_value(%Duration{} = value, _depth), do: value
   def to_feel_value(%Boxic.FEEL.Range{} = value, _depth), do: value
 
   def to_feel_value(%_struct{} = record, depth) do
@@ -335,7 +349,7 @@ defmodule AshDecisions.Feel do
   def print(%Boxic.FEEL.DateTime{} = dt),
     do: ~s|date and time("#{Boxic.FEEL.DateTime.to_string(dt)}")|
 
-  def print(%Boxic.FEEL.Duration{} = d), do: ~s|duration("#{Boxic.FEEL.Duration.to_string(d)}")|
+  def print(%Duration{} = d), do: ~s|duration("#{Duration.to_string(d)}")|
 
   def print(%Boxic.FEEL.Range{} = r) do
     open = if r.start_inclusive, do: "[", else: "("
@@ -448,26 +462,27 @@ defmodule AshDecisions.Feel do
         end
       end)
 
-    case Task.yield(task, timeout) || Task.shutdown(task, :brutal_kill) do
-      {:ok, {:ok, value}} ->
-        {:ok, value}
-
-      {:ok, {:error, %Boxic.FEEL.Error{} = e}} ->
-        {:error, err(e.code, e.message)}
-
-      {:ok, {:error, %{code: _, message: _} = e}} ->
-        {:error, e}
-
-      {:ok, {:error, other}} ->
-        {:error, err(:evaluation_failed, inspect(other, limit: 5))}
-
-      {:exit, reason} ->
-        {:error, err(:evaluation_exited, inspect(reason, limit: 5))}
-
-      nil ->
-        {:error, err(:timeout, "expression did not finish within #{timeout}ms")}
-    end
+    result = Task.yield(task, timeout) || Task.shutdown(task, :brutal_kill)
+    task_result(result, timeout)
   end
+
+  # Whatever the task answered is flattened here; `nil` means the timeout won
+  # and the task was killed.
+  defp task_result({:ok, {:ok, value}}, _timeout), do: {:ok, value}
+
+  defp task_result({:ok, {:error, %Boxic.FEEL.Error{} = e}}, _timeout),
+    do: {:error, err(e.code, e.message)}
+
+  defp task_result({:ok, {:error, %{code: _, message: _} = e}}, _timeout), do: {:error, e}
+
+  defp task_result({:ok, {:error, other}}, _timeout),
+    do: {:error, err(:evaluation_failed, inspect(other, limit: 5))}
+
+  defp task_result({:exit, reason}, _timeout),
+    do: {:error, err(:evaluation_exited, inspect(reason, limit: 5))}
+
+  defp task_result(nil, timeout),
+    do: {:error, err(:timeout, "expression did not finish within #{timeout}ms")}
 
   defp do_parse(source, opts) do
     bounded(opts, fn -> Boxic.FEEL.parse(source) end)

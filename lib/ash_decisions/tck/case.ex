@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Luke Galea
+#
+# SPDX-License-Identifier: MIT
+
 defmodule AshDecisions.Tck.Case do
   @moduledoc """
   One `testCase` from a TCK expectation file, parsed into something runnable.
@@ -52,21 +56,25 @@ defmodule AshDecisions.Tck.Case do
   def load_file(case_file, group, level) do
     with {:ok, xml} <- File.read(case_file),
          {:ok, root} <- Xml.parse(xml) do
-      model_name = root |> Xml.child("modelName") |> Xml.text()
-      model_path = Path.join(Path.dirname(case_file), model_name)
+      parse_cases(root, group, level, case_file)
+    end
+  end
 
-      root
-      |> Xml.children("testCase")
-      |> Enum.reduce_while({:ok, []}, fn el, {:ok, acc} ->
-        case parse_case(el, group, level, model_path, case_file) do
-          {:ok, c} -> {:cont, {:ok, [c | acc]}}
-          {:error, reason} -> {:halt, {:error, "#{case_file}: #{reason}"}}
-        end
-      end)
-      |> case do
-        {:ok, acc} -> {:ok, Enum.reverse(acc)}
-        error -> error
+  defp parse_cases(root, group, level, case_file) do
+    model_name = root |> Xml.child("modelName") |> Xml.text()
+    model_path = Path.join(Path.dirname(case_file), model_name)
+
+    root
+    |> Xml.children("testCase")
+    |> Enum.reduce_while({:ok, []}, fn el, {:ok, acc} ->
+      case parse_case(el, group, level, model_path, case_file) do
+        {:ok, c} -> {:cont, {:ok, [c | acc]}}
+        {:error, reason} -> {:halt, {:error, "#{case_file}: #{reason}"}}
       end
+    end)
+    |> case do
+      {:ok, acc} -> {:ok, Enum.reverse(acc)}
+      error -> error
     end
   end
 

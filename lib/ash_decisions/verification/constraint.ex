@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Luke Galea
+#
+# SPDX-License-Identifier: MIT
+
 defmodule AshDecisions.Verification.Constraint do
   @moduledoc """
   Lowers a decision table input entry into a constraint, or refuses to guess.

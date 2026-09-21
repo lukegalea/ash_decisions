@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Luke Galea
+#
+# SPDX-License-Identifier: MIT
+
 # Create the test database if it is not there yet.
 AshDecisions.TestRepo.__adapter__().storage_up(AshDecisions.TestRepo.config())
 

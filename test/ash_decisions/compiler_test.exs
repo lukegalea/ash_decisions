@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Luke Galea
+#
+# SPDX-License-Identifier: MIT
+
 defmodule AshDecisions.CompilerTest do
   @moduledoc """
   What the compiler accepts, and — mostly — what it refuses.
@@ -20,7 +24,7 @@ defmodule AshDecisions.CompilerTest do
     errors
   end
 
-  defp messages(name), do: errors(name) |> Enum.map(& &1.message) |> Enum.join("\n")
+  defp messages(name), do: Enum.map_join(errors(name), "\n", & &1.message)
 
   describe "a document it accepts" do
     test "snapshots the decision, its clauses, its hit policy and its rules" do

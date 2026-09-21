@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Luke Galea
+#
+# SPDX-License-Identifier: MIT
+
 defmodule AshDecisions.Tck.Runner do
   @moduledoc """
   Runs the vendored DMN TCK corpus through the decision engine and reports what happened.
@@ -19,6 +23,7 @@ defmodule AshDecisions.Tck.Runner do
   claims become misleading, in both directions.
   """
 
+  alias AshDecisions.Dmn.Profile
   alias AshDecisions.Tck.{Case, Value}
 
   @levels ~w(compliance-level-2 compliance-level-3)
@@ -105,7 +110,7 @@ defmodule AshDecisions.Tck.Runner do
     # against real models rather than against an argument about the specification.
     with {:ok, xml} <- File.read(path),
          xml = maybe_downgrade(xml),
-         {:ok, model} <- xml |> AshDecisions.Dmn.Profile.normalize() |> Boxic.DMN.load_xml() do
+         {:ok, model} <- xml |> Profile.normalize() |> Boxic.DMN.load_xml() do
       # Validation failures are reported as model errors rather than swallowed: a model the
       # engine considers invalid cannot produce a meaningful result, and pretending
       # otherwise would score the corpus against an engine running in an undefined state.

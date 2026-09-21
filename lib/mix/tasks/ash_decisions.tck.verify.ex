@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Luke Galea
+#
+# SPDX-License-Identifier: MIT
+
 defmodule Mix.Tasks.AshDecisions.Tck.Verify do
   @shortdoc "Check that the vendored DMN TCK corpus is unmodified"
 
@@ -16,6 +20,8 @@ defmodule Mix.Tasks.AshDecisions.Tck.Verify do
 
   use Mix.Task
 
+  alias AshDecisions.Tck.Runner
+
   @manifest "VENDORED_FILES.sha256"
 
   # Ours, not upstream's: the manifest itself, the commit pointer, and the attribution note.
@@ -25,7 +31,7 @@ defmodule Mix.Tasks.AshDecisions.Tck.Verify do
   @impl Mix.Task
   def run(_argv) do
     Mix.Task.run("app.start")
-    dir = AshDecisions.Tck.Runner.corpus_dir()
+    dir = Runner.corpus_dir()
     manifest = Path.join(dir, @manifest)
 
     unless File.exists?(manifest) do
@@ -71,8 +77,7 @@ defmodule Mix.Tasks.AshDecisions.Tck.Verify do
     dir
     |> Path.join("**/*")
     |> Path.wildcard()
-    |> Enum.reject(&File.dir?/1)
-    |> Enum.reject(&(Path.basename(&1) in @ours))
+    |> Enum.reject(&(&1 |> File.dir?() or Path.basename(&1) in @ours))
     |> Map.new(fn file ->
       {"./" <> Path.relative_to(file, dir),
        file |> File.read!() |> then(&:crypto.hash(:sha256, &1)) |> Base.encode16(case: :lower)}

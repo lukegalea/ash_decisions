@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Luke Galea
+#
+# SPDX-License-Identifier: MIT
+
 defmodule AshDecisions.Resources.Evaluation do
   @moduledoc """
   Resource macro for the record of a decision having been made.

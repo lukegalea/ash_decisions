@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Luke Galea
+#
+# SPDX-License-Identifier: MIT
+
 defmodule AshDecisions.Checks.AshDecisionsInteraction do
   @moduledoc """
   Passes when ash_decisions itself is the caller.

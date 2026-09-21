@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Luke Galea
+#
+# SPDX-License-Identifier: MIT
+
 defmodule AshDecisions.MixProject do
   use Mix.Project
 
@@ -17,6 +21,7 @@ defmodule AshDecisions.MixProject do
       elixirc_paths: elixirc_paths(Mix.env()),
       aliases: aliases(),
       deps: deps(),
+      dialyzer: dialyzer(),
       description: @description,
       package: package(),
       source_url: "https://github.com/lukegalea/ash_decisions",
@@ -32,6 +37,18 @@ defmodule AshDecisions.MixProject do
   # same choice ash_bpmn made.
   def application do
     [extra_applications: [:logger, :xmerl, :crypto]]
+  end
+
+  # `:mix` and `:ex_unit` are in the PLT because the mix tasks reference
+  # `Mix.*`, and without them dialyzer reports those calls as unknown functions.
+  # The PLT lives under priv/plts so CI can cache it; `{:no_warn, _}` keeps
+  # dialyxir quiet about the non-default location.
+  defp dialyzer do
+    [
+      plt_add_apps: [:mix, :ex_unit],
+      plt_file: {:no_warn, "priv/plts/dialyzer.plt"},
+      list_unused_filters: true
+    ]
   end
 
   defp package do

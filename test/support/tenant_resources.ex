@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Luke Galea
+#
+# SPDX-License-Identifier: MIT
+
 # A second instantiation of both resource macros, this time with `tenant?: true`,
 # against a second, tenant-scoped copy of the tables.
 #

@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Luke Galea
+#
+# SPDX-License-Identifier: MIT
+
 defmodule AshDecisions.TestRepo do
   @moduledoc """
   The repo the resource tests run against. Test-env only.

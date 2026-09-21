@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Luke Galea
+#
+# SPDX-License-Identifier: MIT
+
 defmodule AshDecisions.PoliciesTest do
   @moduledoc """
   This package's own authority, and the fact that it is declared.
@@ -17,8 +21,11 @@ defmodule AshDecisions.PoliciesTest do
 
   require Ash.Query
 
+  alias Ash.Policy.Info
+  alias AshDecisions.Checks.AshDecisionsInteraction
   alias AshDecisions.Scope
   alias AshDecisions.TenantTest
+  alias AshDecisions.Test.Definition
 
   @tenant Ecto.UUID.generate()
   @generated [TenantTest.Definition, TenantTest.Evaluation]
@@ -26,7 +33,7 @@ defmodule AshDecisions.PoliciesTest do
   describe "the generated policy set" do
     test "every resource carries exactly one policy, and it is the bypass" do
       for resource <- @generated do
-        assert [policy] = Ash.Policy.Info.policies(resource),
+        assert [policy] = Info.policies(resource),
                "#{inspect(resource)} should carry exactly the generated policy"
 
         assert policy.bypass?, "#{inspect(resource)}'s generated policy should be a bypass"
@@ -34,7 +41,7 @@ defmodule AshDecisions.PoliciesTest do
         # The check is the policy's *condition* -- `bypass Check do … end` puts
         # it there and `authorize_if always()` is the body.
         assert Enum.any?(policy.condition, fn
-                 {AshDecisions.Checks.AshDecisionsInteraction, _opts} -> true
+                 {AshDecisionsInteraction, _opts} -> true
                  _ -> false
                end),
                "#{inspect(resource)}'s bypass should be conditioned on AshDecisionsInteraction"
@@ -72,13 +79,13 @@ defmodule AshDecisions.PoliciesTest do
       # data layer ignores it -- worth pinning, because the alternative would be
       # a break in every such host.
       assert {:ok, _} =
-               AshDecisions.Test.Definition
+               Definition
                |> Ash.Query.for_read(:read)
                |> Ash.read(Scope.engine(%Scope{tenant: Ecto.UUID.generate()}))
     end
 
     test "the check describes itself, so a policy breakdown reads" do
-      assert AshDecisions.Checks.AshDecisionsInteraction.describe([]) =~ "ash_decisions"
+      assert AshDecisionsInteraction.describe([]) =~ "ash_decisions"
     end
   end
 

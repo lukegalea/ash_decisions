@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Luke Galea
+#
+# SPDX-License-Identifier: MIT
+
 defmodule Mix.Tasks.AshDecisions.Tck do
   @shortdoc "Run the vendored DMN TCK corpus and report conformance"
 
@@ -75,7 +79,7 @@ defmodule Mix.Tasks.AshDecisions.Tck do
         Mix.raise("""
         DMN TCK: #{length(bad)} unexpected failures.
 
-        #{bad |> Enum.map(&"  #{&1.level}/#{&1.group}/#{&1.case_id} #{&1.decision}: #{&1.detail}") |> Enum.take(15) |> Enum.join("\n")}
+        #{bad |> Enum.take(15) |> Enum.map_join("\n", &"  #{&1.level}/#{&1.group}/#{&1.case_id} #{&1.decision}: #{&1.detail}")}
 
         Either fix the cause, or add the group to AshDecisions.Tck.ExpectedFailures with the
         reason it cannot pass and the number of nodes that fail.
@@ -85,7 +89,7 @@ defmodule Mix.Tasks.AshDecisions.Tck do
         Mix.raise("""
         DMN TCK: #{length(drifted)} groups fail a different number of nodes than recorded.
 
-        #{drifted |> Enum.map(fn {level, group, expected, actual} -> "  #{level}/#{group}: recorded #{expected}, measured #{actual}#{verdict(expected, actual)}" end) |> Enum.join("\n")}
+        #{Enum.map_join(drifted, "\n", fn {level, group, expected, actual} -> "  #{level}/#{group}: recorded #{expected}, measured #{actual}#{verdict(expected, actual)}" end)}
 
         Fewer than recorded is progress: update the count in
         AshDecisions.Tck.ExpectedFailures, or delete the entry if it reached zero.

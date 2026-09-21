@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Luke Galea
+#
+# SPDX-License-Identifier: MIT
+
 defmodule AshDecisions.DmnProfileTest do
   @moduledoc """
   The two directions of the DMN revision gap, and the round trip between them.

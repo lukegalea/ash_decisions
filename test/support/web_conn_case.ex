@@ -11,6 +11,9 @@ defmodule AshDecisions.WebConnCase do
 
   use ExUnit.CaseTemplate
 
+  alias AshDecisions.TestRepo
+  alias Ecto.Adapters.SQL
+
   using do
     quote do
       import Phoenix.ConnTest
@@ -21,8 +24,8 @@ defmodule AshDecisions.WebConnCase do
   end
 
   setup tags do
-    pid = Ecto.Adapters.SQL.Sandbox.start_owner!(AshDecisions.TestRepo, shared: not tags[:async])
-    on_exit(fn -> Ecto.Adapters.SQL.Sandbox.stop_owner(pid) end)
+    pid = SQL.Sandbox.start_owner!(TestRepo, shared: not tags[:async])
+    on_exit(fn -> SQL.Sandbox.stop_owner(pid) end)
 
     start_supervised!(
       {Phoenix.PubSub, name: AshDecisions.Web.TestPubSub, adapter: Phoenix.PubSub.PG2}

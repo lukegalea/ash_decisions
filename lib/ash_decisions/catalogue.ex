@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Luke Galea
+#
+# SPDX-License-Identifier: MIT
+
 defmodule AshDecisions.Catalogue do
   @moduledoc """
   A read-only projection of a domain's decisions, shaped for pickers and menus.

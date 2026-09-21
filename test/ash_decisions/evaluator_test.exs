@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Luke Galea
+#
+# SPDX-License-Identifier: MIT
+
 defmodule AshDecisions.EvaluatorTest do
   @moduledoc """
   Evaluating a published decision, and the specification-revision gap that had to be closed

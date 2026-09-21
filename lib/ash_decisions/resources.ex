@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Luke Galea
+#
+# SPDX-License-Identifier: MIT
+
 defmodule AshDecisions.Resources do
   @moduledoc """
   Resource macro registry and introspection helpers.
@@ -13,6 +17,8 @@ defmodule AshDecisions.Resources do
   that drift apart silently, and the drift only shows up as a decision evaluated
   against the wrong table.
   """
+
+  alias Ash.Domain.Info
 
   @kinds [:definition, :evaluation]
 
@@ -33,7 +39,7 @@ defmodule AshDecisions.Resources do
   """
   @spec for_domain(module()) :: {:ok, map()} | {:error, :missing_resources, [atom()]}
   def for_domain(domain) do
-    resources = Ash.Domain.Info.resources(domain)
+    resources = Info.resources(domain)
 
     mapping =
       for kind <- @kinds, into: %{} do

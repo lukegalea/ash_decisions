@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Luke Galea
+#
+# SPDX-License-Identifier: MIT
+
 defmodule AshDecisions.BaseResourceTest do
   @moduledoc """
   `:base` — decision resources sitting on a host application's base resource.

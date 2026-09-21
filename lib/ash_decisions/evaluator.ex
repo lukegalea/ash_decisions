@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Luke Galea
+#
+# SPDX-License-Identifier: MIT
+
 defmodule AshDecisions.Evaluator do
   @moduledoc """
   Evaluates a published decision, and records what it decided.
@@ -34,6 +38,7 @@ defmodule AshDecisions.Evaluator do
 
   require Logger
 
+  alias AshDecisions.Dmn.Profile
   alias AshDecisions.Feel
 
   @cache_prefix {__MODULE__, :model}
@@ -145,7 +150,7 @@ defmodule AshDecisions.Evaluator do
   defp load(%{xml: xml}) when is_binary(xml) do
     # Normalized on the way in, never on the way to storage. See `AshDecisions.Dmn.Profile`:
     # the designer writes DMN 1.3 and the engine loads only 1.5.
-    case xml |> AshDecisions.Dmn.Profile.normalize() |> Boxic.DMN.load_xml() do
+    case xml |> Profile.normalize() |> Boxic.DMN.load_xml() do
       {:ok, model} -> {:ok, model}
       {:error, reason} -> {:error, {:model_load_failed, reason}}
     end

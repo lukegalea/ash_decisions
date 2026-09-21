@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Luke Galea
+#
+# SPDX-License-Identifier: MIT
+
 defmodule AshDecisions.ResourcesTest do
   @moduledoc """
   The definition lifecycle, and the record of what a decision decided.
@@ -13,6 +17,7 @@ defmodule AshDecisions.ResourcesTest do
 
   require Ash.Query
 
+  alias Ash.Resource.Info
   alias AshDecisions.Test.{Definition, Domain, Evaluation}
 
   @discount File.read!("test/fixtures/discount.dmn")
@@ -222,7 +227,7 @@ defmodule AshDecisions.ResourcesTest do
     test "the resource is append-only: there is no update and no destroy" do
       action_types =
         Evaluation
-        |> Ash.Resource.Info.actions()
+        |> Info.actions()
         |> Enum.map(& &1.type)
         |> Enum.uniq()
         |> Enum.sort()

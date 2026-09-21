@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Luke Galea
+#
+# SPDX-License-Identifier: MIT
+
 defmodule AshDecisions.FeelTest do
   @moduledoc """
   The FEEL seam and the three bounds it enforces.

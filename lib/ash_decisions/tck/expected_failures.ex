@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Luke Galea
+#
+# SPDX-License-Identifier: MIT
+
 defmodule AshDecisions.Tck.ExpectedFailures do
   @moduledoc """
   The cases we know do not pass, each with the reason it does not.

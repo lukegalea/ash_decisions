@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Luke Galea
+#
+# SPDX-License-Identifier: MIT
+
 defmodule AshDecisions.DataCase do
   @moduledoc """
   Case template for tests that talk to a real PostgreSQL server.
@@ -7,6 +11,9 @@ defmodule AshDecisions.DataCase do
 
   use ExUnit.CaseTemplate
 
+  alias AshDecisions.TestRepo
+  alias Ecto.Adapters.SQL
+
   using do
     quote do
       import AshDecisions.DataCase
@@ -15,8 +22,8 @@ defmodule AshDecisions.DataCase do
   end
 
   setup tags do
-    pid = Ecto.Adapters.SQL.Sandbox.start_owner!(AshDecisions.TestRepo, shared: not tags[:async])
-    on_exit(fn -> Ecto.Adapters.SQL.Sandbox.stop_owner(pid) end)
+    pid = SQL.Sandbox.start_owner!(TestRepo, shared: not tags[:async])
+    on_exit(fn -> SQL.Sandbox.stop_owner(pid) end)
     :ok
   end
 end

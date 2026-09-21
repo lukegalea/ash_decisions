@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Luke Galea
+#
+# SPDX-License-Identifier: MIT
+
 defmodule AshDecisions.Tck.Value do
   @moduledoc """
   Reads the typed values in a TCK expectation file, and decides whether an engine result

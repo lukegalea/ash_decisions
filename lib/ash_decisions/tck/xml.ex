@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Luke Galea
+#
+# SPDX-License-Identifier: MIT
+
 defmodule AshDecisions.Tck.Xml do
   @moduledoc """
   The small slice of `:xmerl` this package needs, wrapped so callers never touch records.
@@ -98,11 +102,10 @@ defmodule AshDecisions.Tck.Xml do
   def raw_text(el) when Record.is_record(el, :xmlElement) do
     el
     |> xmlElement(:content)
-    |> Enum.map(fn
+    |> Enum.map_join(fn
       node when Record.is_record(node, :xmlText) -> node |> xmlText(:value) |> to_string()
       _ -> ""
     end)
-    |> Enum.join()
   end
 
   defp strip_prefix(name) do

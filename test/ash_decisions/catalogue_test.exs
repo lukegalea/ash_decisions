@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Luke Galea
+#
+# SPDX-License-Identifier: MIT
+
 defmodule AshDecisions.CatalogueTest do
   @moduledoc """
   The catalogue projection: what a picker needs to know about a domain's

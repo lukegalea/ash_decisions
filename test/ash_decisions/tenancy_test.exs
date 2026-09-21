@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Luke Galea
+#
+# SPDX-License-Identifier: MIT
+
 defmodule AshDecisions.TenancyTest do
   @moduledoc """
   `tenant?: true`, exercised against tenant-scoped tables.

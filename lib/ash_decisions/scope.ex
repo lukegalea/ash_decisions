@@ -1,4 +1,10 @@
+# SPDX-FileCopyrightText: 2026 Luke Galea
+#
+# SPDX-License-Identifier: MIT
+
 defmodule AshDecisions.Scope do
+  alias Ash.Resource.Info
+
   @moduledoc """
   Who is acting, and in which tenant — carried through every call this package
   makes into Ash.
@@ -172,7 +178,7 @@ defmodule AshDecisions.Scope do
   defp tenant_of(_), do: nil
 
   defp domain_of(%{__struct__: resource}) do
-    Ash.Resource.Info.domain(resource)
+    Info.domain(resource)
   rescue
     _ -> nil
   end

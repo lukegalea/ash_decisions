@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Luke Galea
+#
+# SPDX-License-Identifier: MIT
+
 defmodule AshDecisions.Compiler do
   @moduledoc """
   Compiles a DMN document into an immutable, verified snapshot.
@@ -83,6 +87,7 @@ defmodule AshDecisions.Compiler do
   over.
   """
 
+  alias AshDecisions.Dmn.Profile
   alias AshDecisions.Tck.Xml
 
   @supported_logic ~w(decisionTable literalExpression)
@@ -118,14 +123,21 @@ defmodule AshDecisions.Compiler do
     # element and says what to do about it, and the engine's validator still
     # runs on everything we let through.
     with {:ok, root} <- parse(xml) do
-      case refusals(root) ++ reference_errors(root) do
-        [] ->
-          with {:ok, _model} <- load_and_validate(xml), do: build(root)
-
-        errors ->
-          {:error, errors}
-      end
+      compile_checked(xml, root)
     end
+  end
+
+  # The refusals and reference errors are ours and are cheap; the engine's load
+  # and validate runs only once they are silent.
+  defp compile_checked(xml, root) do
+    case refusals(root) ++ reference_errors(root) do
+      [] -> build_validated(xml, root)
+      errors -> {:error, errors}
+    end
+  end
+
+  defp build_validated(xml, root) do
+    with {:ok, _model} <- load_and_validate(xml), do: build(root)
   end
 
   @doc """
@@ -155,18 +167,17 @@ defmodule AshDecisions.Compiler do
   defp load_and_validate(xml) do
     # Same normalization the evaluator applies, for the same reason: a document that
     # compiles must be a document that runs, so both must see the engine the same way.
-    case xml |> AshDecisions.Dmn.Profile.normalize() |> Boxic.DMN.load_xml() do
+    case xml |> Profile.normalize() |> Boxic.DMN.load_xml() do
       {:ok, model} ->
         case Boxic.DMN.validate(model) do
           :ok -> {:ok, model}
           {:error, issues} -> {:error, Enum.map(issues, &validation_error/1)}
         end
 
+      # The engine's failure type is exactly a diagnostic list; anything else
+      # cannot be produced, and a raise here lands in the rescue below.
       {:error, diagnostics} when is_list(diagnostics) ->
         {:error, Enum.map(diagnostics, &validation_error/1)}
-
-      {:error, reason} ->
-        {:error, [error("document", "the DMN document could not be loaded: #{render(reason)}")]}
     end
   rescue
     e -> {:error, [error("document", "loading the DMN document raised: #{Exception.message(e)}")]}
@@ -430,8 +441,10 @@ defmodule AshDecisions.Compiler do
 
   defp reference_errors(root) do
     decisions = decisions(root)
-    decision_ids = MapSet.new(decisions, &id_of/1)
-    input_ids = root |> Xml.descendants("inputData") |> MapSet.new(&id_of/1)
+    # Plain maps rather than MapSets: the sets are tiny, and dialyzer reasons
+    # about ordinary maps without tripping over MapSet's opaque internals.
+    decision_ids = Map.new(decisions, fn decision -> {id_of(decision), true} end)
+    input_ids = root |> Xml.descendants("inputData") |> Map.new(fn el -> {id_of(el), true} end)
 
     unresolved =
       Enum.flat_map(decisions, fn decision ->
@@ -449,8 +462,8 @@ defmodule AshDecisions.Compiler do
     unresolved ++ cycle_errors(decisions, decision_ids)
   end
 
-  defp unless_member(set, href, id, why) do
-    if MapSet.member?(set, href) do
+  defp unless_member(ids, href, id, why) do
+    if Map.has_key?(ids, href) do
       []
     else
       [
@@ -469,13 +482,7 @@ defmodule AshDecisions.Compiler do
   defp cycle_errors(decisions, decision_ids) do
     edges =
       Map.new(decisions, fn decision ->
-        deps =
-          decision
-          |> requirements()
-          |> Enum.flat_map(fn
-            {:decision, href} -> if MapSet.member?(decision_ids, href), do: [href], else: []
-            {:input_data, _} -> []
-          end)
+        deps = decision |> requirements() |> Enum.flat_map(&decision_dep(&1, decision_ids))
 
         {id_of(decision), deps}
       end)
@@ -483,7 +490,7 @@ defmodule AshDecisions.Compiler do
     edges
     |> Map.keys()
     |> Enum.flat_map(fn id ->
-      if reaches?(edges, id, id, MapSet.new()) do
+      if reaches?(edges, id, id, %{}) do
         [
           error(
             id,
@@ -496,14 +503,22 @@ defmodule AshDecisions.Compiler do
     end)
   end
 
+  # A requirement edge counts only when it points at another decision in this
+  # document; an inputData reference is not part of the dependency graph.
+  defp decision_dep({:decision, href}, decision_ids) do
+    if Map.has_key?(decision_ids, href), do: [href], else: []
+  end
+
+  defp decision_dep({:input_data, _}, _decision_ids), do: []
+
   defp reaches?(edges, from, target, seen) do
     edges
     |> Map.get(from, [])
     |> Enum.any?(fn next ->
       cond do
         next == target -> true
-        MapSet.member?(seen, next) -> false
-        true -> reaches?(edges, next, target, MapSet.put(seen, next))
+        Map.has_key?(seen, next) -> false
+        true -> reaches?(edges, next, target, Map.put(seen, next, true))
       end
     end)
   end

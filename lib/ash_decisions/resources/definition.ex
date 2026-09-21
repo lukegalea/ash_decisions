@@ -1,4 +1,11 @@
+# SPDX-FileCopyrightText: 2026 Luke Galea
+#
+# SPDX-License-Identifier: MIT
+
 defmodule AshDecisions.Resources.Definition do
+  alias __MODULE__.Schema
+  alias AshDecisions.Resources.Base
+
   @moduledoc """
   Resource macro for DMN decision definitions.
 
@@ -61,7 +68,9 @@ defmodule AshDecisions.Resources.Definition do
     tenant? = AshDecisions.Resources.Base.own_tenancy?(opts)
     policies? = Keyword.get(opts, :policies?, true)
 
-    base_use = AshDecisions.Resources.Base.use_call(opts)
+    base_use = Base.use_call(opts)
+
+    attributes_ast = Schema.attributes_ast(tenant?)
 
     quote do
       unquote(base_use)
@@ -104,6 +113,85 @@ defmodule AshDecisions.Resources.Definition do
         end
       end
 
+      unquote(attributes_ast)
+
+      identities do
+        identity(:unique_key_version, [:key, :version])
+      end
+
+      actions do
+        read :read do
+          primary?(true)
+        end
+
+        read :latest_published do
+          argument :key, :string do
+            allow_nil?(false)
+          end
+
+          prepare(AshDecisions.Resources.Definition.FilterLatestPublished)
+        end
+
+        create :create do
+          accept([:key, :name, :xml])
+
+          change(AshDecisions.Resources.Definition.AssignVersion)
+          change(AshDecisions.Resources.Definition.ComputeHash)
+          change(AshDecisions.Resources.Definition.CompileXml)
+          change(AshDecisions.Resources.Definition.VerifyGraph)
+          validate(AshDecisions.Resources.Definition.UniqueDraftCheck)
+        end
+
+        update :save_xml do
+          accept([:xml])
+          require_atomic?(false)
+
+          validate(AshDecisions.Resources.Definition.StatusIsDraft)
+          change(AshDecisions.Resources.Definition.ComputeHash)
+          change(AshDecisions.Resources.Definition.CompileXml)
+          change(AshDecisions.Resources.Definition.VerifyGraph)
+        end
+
+        update :publish do
+          accept([])
+          require_atomic?(false)
+
+          validate(AshDecisions.Resources.Definition.StatusIsDraft)
+          validate(AshDecisions.Resources.Definition.ErrorsEmpty)
+          validate(AshDecisions.Resources.Definition.VerificationClean)
+          change(set_attribute(:status, :published))
+        end
+
+        update :retire do
+          accept([])
+          require_atomic?(false)
+
+          validate(AshDecisions.Resources.Definition.StatusIsPublished)
+          change(set_attribute(:status, :retired))
+        end
+      end
+
+      code_interface do
+        define(:create, action: :create)
+        define(:publish, action: :publish)
+        define(:retire, action: :retire)
+        define(:save_xml, action: :save_xml, args: [:xml])
+        define(:by_key_version, action: :read, get_by: [:key, :version], get?: true)
+        define(:latest_published, action: :latest_published, args: [:key])
+      end
+    end
+  end
+end
+
+defmodule AshDecisions.Resources.Definition.Schema do
+  @moduledoc false
+
+  # The attribute set of the generated definition resource, as AST for splicing
+  # into `__using__`'s quote. It lives here so that quote stays a table of
+  # contents over the resource's shape rather than the whole resource inline.
+
+  def attributes_ast(tenant?) do
+    quote do
       attributes do
         uuid_primary_key(:id)
 
@@ -184,71 +272,6 @@ defmodule AshDecisions.Resources.Definition do
         end
 
         timestamps()
-      end
-
-      identities do
-        identity(:unique_key_version, [:key, :version])
-      end
-
-      actions do
-        read :read do
-          primary?(true)
-        end
-
-        read :latest_published do
-          argument :key, :string do
-            allow_nil?(false)
-          end
-
-          prepare(AshDecisions.Resources.Definition.FilterLatestPublished)
-        end
-
-        create :create do
-          accept([:key, :name, :xml])
-
-          change(AshDecisions.Resources.Definition.AssignVersion)
-          change(AshDecisions.Resources.Definition.ComputeHash)
-          change(AshDecisions.Resources.Definition.CompileXml)
-          change(AshDecisions.Resources.Definition.VerifyGraph)
-          validate(AshDecisions.Resources.Definition.UniqueDraftCheck)
-        end
-
-        update :save_xml do
-          accept([:xml])
-          require_atomic?(false)
-
-          validate(AshDecisions.Resources.Definition.StatusIsDraft)
-          change(AshDecisions.Resources.Definition.ComputeHash)
-          change(AshDecisions.Resources.Definition.CompileXml)
-          change(AshDecisions.Resources.Definition.VerifyGraph)
-        end
-
-        update :publish do
-          accept([])
-          require_atomic?(false)
-
-          validate(AshDecisions.Resources.Definition.StatusIsDraft)
-          validate(AshDecisions.Resources.Definition.ErrorsEmpty)
-          validate(AshDecisions.Resources.Definition.VerificationClean)
-          change(set_attribute(:status, :published))
-        end
-
-        update :retire do
-          accept([])
-          require_atomic?(false)
-
-          validate(AshDecisions.Resources.Definition.StatusIsPublished)
-          change(set_attribute(:status, :retired))
-        end
-      end
-
-      code_interface do
-        define(:create, action: :create)
-        define(:publish, action: :publish)
-        define(:retire, action: :retire)
-        define(:save_xml, action: :save_xml, args: [:xml])
-        define(:by_key_version, action: :read, get_by: [:key, :version], get?: true)
-        define(:latest_published, action: :latest_published, args: [:key])
       end
     end
   end
