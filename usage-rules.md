@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2026 Luke Galea
+
+SPDX-License-Identifier: MIT
+-->
+
 # ash_decisions usage rules
 
 _Rules for working with the ash_decisions library, for humans and agents alike._
@@ -74,3 +80,22 @@ A decision answers a question; the caller decides what to do with the answer.
 - `mix ash_decisions.tck.verify` proves the vendored corpus is byte-identical to its pinned
   upstream commit. It is share-alike licensed; never edit a test case.
 - `xmllint` must be on `PATH` (`libxml2`), or every model fails to load.
+
+## Iron laws
+
+Changes to this package are checked against the 26 Iron Laws (phxagents.dev/iron-laws;
+background in `ash_enterprise/docs/research/phxagents-iron-laws-and-codicil.md`).
+`ash_agent_tools` ships a deterministic judge for them — `mix ash_agent.laws` reports
+violations only, tiered definite/likely/review — wherever that dev tool is installed
+(it is part of the `ash_enterprise` program, not a dependency of this package).
+
+- Judge a change before claiming it done: `git diff main | mix ash_agent.laws - --diff`,
+  and read the hits' context before acting — the judge is grep-tier, not a parser.
+- The laws with teeth *inside a library* are the ones it can see from source: #10 (never
+  `String.to_atom` on tenant-authored input — this package bounds and refuses untrusted
+  work instead), #16 (`@external_resource` for compile-time file reads), #22 (verify
+  before claiming done — compile, test, credo, docs, dialyzer, then say so), #26
+  (comments carry durable facts; the narrative belongs to the commit).
+- The Phoenix-facing laws (no mount-time queries, `connected?` before PubSub, streams)
+  govern the **host applications** that inject `AshDecisions.Web.EditorLive`. The editor
+  itself keeps `mount/3` static, loads in `handle_params/3`, and subscribes to nothing.
