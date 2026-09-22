@@ -9,8 +9,6 @@ defmodule AshDecisions.Web.EditorLive.Impl do
   # stays readable callbacks and the logic stays ordinary functions; the domain is
   # passed explicitly rather than read from a module attribute.
 
-  require Ash.Query
-
   import Phoenix.Component, only: [assign: 3]
   import Phoenix.LiveView, only: [put_flash: 3]
 
@@ -39,7 +37,7 @@ defmodule AshDecisions.Web.EditorLive.Impl do
         <decisionTable id="DecisionTable_1" hitPolicy="FIRST">
           <input id="Input_1" label="Input">
             <inputExpression id="InputExpression_1" typeRef="string">
-              <text></text>
+              <text>input</text>
             </inputExpression>
           </input>
           <output id="Output_1" label="Output" name="result" typeRef="string"/>
@@ -94,23 +92,26 @@ defmodule AshDecisions.Web.EditorLive.Impl do
       |> Ash.Query.do_filter(key: key, status: :draft)
       |> Ash.read_one!(opts)
 
-    definition =
-      definition ||
-        definition_mod.create!(
-          %{
-            key: key,
-            name: String.capitalize(key) <> " decision",
-            xml: template_xml(key)
-          },
-          Keyword.put(opts, :authorize?, false)
-        )
-
     latest_published =
       case definition_mod.latest_published(key, opts) do
         {:ok, [pub | _]} -> pub
         [pub | _] -> pub
         _ -> nil
       end
+
+    # Opening with no draft starts the new draft from the published version
+    # when one exists: editing continues from what is live, never from a
+    # blank template over a real decision. The template is only for keys
+    # that have never been published.
+    create_params =
+      case latest_published do
+        %{} = pub -> %{key: key, name: pub.name, xml: pub.xml}
+        nil -> %{key: key, name: String.capitalize(key) <> " decision", xml: template_xml(key)}
+      end
+
+    definition =
+      definition ||
+        definition_mod.create!(create_params, Keyword.put(opts, :authorize?, false))
 
     socket
     |> assign(:definition, definition)
