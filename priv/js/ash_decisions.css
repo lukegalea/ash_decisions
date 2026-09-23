@@ -2,8 +2,13 @@
  * SPDX-FileCopyrightText: 2026 Luke Galea
  * SPDX-License-Identifier: MIT
  *
- * The editor's own layout. Deliberately tiny: dmn-js ships its own stylesheets
- * for the diagram and the table, and this only gives them somewhere to live.
+ * The editor's own stylesheets. dmn-js ships its own stylesheets for the
+ * diagram and the table, and the layout rules below only give them somewhere
+ * to live. The LiveView chrome vocabulary at the bottom is token-driven: every
+ * value rides a --a2ui-* custom property hosts already define (the ash_a2ui
+ * web components), with honest neobrutalist fallbacks — 2px border, hard
+ * shadow, lift on hover, press on click — so the editor presents itself in
+ * any host, themed in the ones that define the tokens.
  */
 
 /* A DEFINITE height, not `height: 100%`.
@@ -59,4 +64,168 @@
   visibility: visible !important;
   opacity: 1 !important;
   z-index: 10;
+}
+
+/*
+ * LiveView chrome — header, actions, view tabs, error panel, editor panel.
+ *
+ * The editor LiveView rides this vocabulary instead of Tailwind/daisyUI
+ * classes: framework markup is outside any host's Tailwind content scan, so
+ * those classes compile to nothing there and the chrome rendered browser-bare
+ * (the clinic-demo bug). These are token-driven: hosts that define the
+ * --a2ui-* vocabulary (the ash_a2ui web components) theme the chrome without
+ * coordination, and the fallbacks keep the framework honest standalone — 2px
+ * border, hard shadow, lift on hover, press on click. The same arrangement
+ * `ash_bpmn` ships for its designer (ash-bpmn-* in ash_bpmn.css).
+ */
+
+.ash-dmn-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  font: inherit;
+  color: var(--a2ui-color-on-surface, inherit);
+}
+
+.ash-dmn-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.ash-dmn-header h1 {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.ash-dmn-header p {
+  margin: 0;
+  font-size: var(--a2ui-font-size-m, 0.875rem);
+  opacity: 0.7;
+}
+
+.ash-dmn-warning {
+  color: var(--a2ui-color-warning, #b45309);
+}
+
+.ash-dmn-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.ash-dmn-btn,
+.ash-dmn-btn--primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font: inherit;
+  font-size: var(--a2ui-font-size-s, 0.75rem);
+  font-weight: 600;
+  line-height: 1.25;
+  padding: var(--a2ui-button-padding, 0.3rem 0.8rem);
+  cursor: pointer;
+  background: var(--a2ui-button-background, var(--a2ui-color-surface, #fff));
+  color: var(--a2ui-color-on-surface, inherit);
+  border: var(--a2ui-border-width, 2px) solid
+    var(--a2ui-button-border, var(--a2ui-color-border, #141414));
+  border-radius: var(--a2ui-border-radius, 0.375rem);
+  box-shadow: 2px 2px 0 0 var(--a2ui-color-border, #141414);
+  transition: transform 80ms ease, box-shadow 80ms ease;
+}
+
+.ash-dmn-btn:hover,
+.ash-dmn-btn--primary:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 3px 3px 0 0 var(--a2ui-color-border, #141414);
+}
+
+.ash-dmn-btn:active,
+.ash-dmn-btn--primary:active {
+  transform: translate(1px, 1px);
+  box-shadow: 1px 1px 0 0 var(--a2ui-color-border, #141414);
+}
+
+.ash-dmn-btn--primary {
+  background: var(--a2ui-color-primary, #2563eb);
+  color: var(--a2ui-color-on-primary, #fff);
+}
+
+/* View tabs. dmn-js has no switcher of its own; the LiveView renders these.
+ * Quieter than the action buttons by design — emphasis is the underline. */
+.ash-dmn-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  border-bottom: var(--a2ui-border-width, 2px) solid
+    var(--a2ui-color-border, #141414);
+}
+
+.ash-dmn-tab {
+  font: inherit;
+  font-size: var(--a2ui-font-size-s, 0.75rem);
+  padding: 0.3rem 0.8rem;
+  cursor: pointer;
+  background: transparent;
+  color: var(--a2ui-color-on-surface, inherit);
+  border: none;
+  border-bottom: var(--a2ui-border-width, 2px) solid transparent;
+  margin-bottom: calc(-1 * var(--a2ui-border-width, 2px));
+}
+
+.ash-dmn-tab:hover {
+  color: var(--a2ui-color-primary, #2563eb);
+}
+
+.ash-dmn-tab--active {
+  color: var(--a2ui-color-primary, #2563eb);
+  font-weight: 600;
+  border-bottom-color: var(--a2ui-color-primary, #2563eb);
+}
+
+.ash-dmn-tab-name {
+  margin-left: 0.25rem;
+  opacity: 0.6;
+  font-weight: 400;
+}
+
+/* Compile errors, shown rather than swallowed. Same tones as ash_bpmn's
+ * jump chips: an error is information, not an alarm. */
+.ash-dmn-errors {
+  margin: 0;
+  padding: 0.75rem;
+  font-size: var(--a2ui-font-size-m, 0.875rem);
+  background: var(--a2ui-color-surface, #fee2e2);
+  color: #991b1b;
+  border: var(--a2ui-border-width, 2px) solid var(--a2ui-color-border, #141414);
+  border-radius: var(--a2ui-border-radius, 0.375rem);
+  box-shadow: 2px 2px 0 0 var(--a2ui-color-border, #141414);
+}
+
+.ash-dmn-errors li {
+  font-family: ui-monospace, monospace;
+}
+
+/* The panel that hosts the canvas. No padding and no overflow rule: the DRD
+ * palette is absolutely positioned against the canvas and must not be clipped
+ * (see the height note at the top of this file), and padding would widen the
+ * canvas past its parent in hosts that do not set border-box. */
+.ash-dmn-panel {
+  background: var(--a2ui-color-surface, #fff);
+  border: var(--a2ui-border-width, 2px) solid var(--a2ui-color-border, #141414);
+  border-radius: var(--a2ui-border-radius, 0.375rem);
+  box-shadow: 2px 2px 0 0 var(--a2ui-color-border, #141414);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ash-dmn-btn,
+  .ash-dmn-btn--primary {
+    transition: none !important;
+  }
+  .ash-dmn-btn:hover,
+  .ash-dmn-btn--primary:hover {
+    transform: none;
+  }
 }

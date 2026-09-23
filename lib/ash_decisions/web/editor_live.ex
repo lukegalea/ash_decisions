@@ -200,11 +200,18 @@ defmodule AshDecisions.Web.EditorLive do
   @doc false
   def __render__(assigns) do
     ~H"""
-    <div class="space-y-4">
-      <div class="flex flex-wrap items-center justify-between gap-3">
+    <%!-- Chrome rides the framework's own vocabulary, not Tailwind/daisyUI
+          utilities: framework markup sits outside every host's Tailwind
+          content scan, so those classes compile to nothing there and the
+          editor rendered browser-bare. The skin ships in
+          priv/js/ash_decisions.css (imported by the editor hook), rides the
+          --a2ui-* tokens hosts already define, and keeps every id, phx-*
+          binding and test selector below untouched. --%>
+    <div class="ash-dmn-editor">
+      <div class="ash-dmn-header">
         <div>
-          <h1 class="text-lg font-semibold">{@definition_key}</h1>
-          <p class="text-sm opacity-70">
+          <h1>{@definition_key}</h1>
+          <p>
             <%= if @definition do %>
               draft v{@definition.version}
             <% end %>
@@ -212,45 +219,45 @@ defmodule AshDecisions.Web.EditorLive do
               · published v{@latest_published.version}
             <% end %>
             <%= if @dirty do %>
-              · <span class="text-warning">unsaved changes</span>
+              · <span class="ash-dmn-warning">unsaved changes</span>
             <% end %>
           </p>
         </div>
 
-        <div class="flex gap-2">
-          <button id="decision-fit" class="btn btn-ghost btn-sm" phx-click="fit">Fit</button>
-          <button id="decision-revert" class="btn btn-ghost btn-sm" phx-click="revert">
+        <div class="ash-dmn-actions">
+          <button id="decision-fit" class="ash-dmn-btn" phx-click="fit">Fit</button>
+          <button id="decision-revert" class="ash-dmn-btn" phx-click="revert">
             Revert
           </button>
-          <button id="decision-save" class="btn btn-sm" phx-click="collect-xml">Save</button>
-          <button id="decision-publish" class="btn btn-primary btn-sm" phx-click="publish">
+          <button id="decision-save" class="ash-dmn-btn" phx-click="collect-xml">Save</button>
+          <button id="decision-publish" class="ash-dmn-btn ash-dmn-btn--primary" phx-click="publish">
             Publish
           </button>
         </div>
       </div>
 
       <%!-- The view tabs. dmn-js has no switcher of its own; see the moduledoc. --%>
-      <div :if={@views != []} class="tabs tabs-bordered" id="decision-views">
+      <div :if={@views != []} class="ash-dmn-tabs" id="decision-views">
         <button
           :for={view <- @views}
           type="button"
           class={[
-            "tab",
-            view["index"] == @active_view && "tab-active"
+            "ash-dmn-tab",
+            view["index"] == @active_view && "ash-dmn-tab--active"
           ]}
           phx-click="open-view"
           phx-value-index={view["index"]}
         >
           {view["label"]}
-          <span :if={view["name"] != ""} class="ml-1 opacity-60">{view["name"]}</span>
+          <span :if={view["name"] != ""} class="ash-dmn-tab-name">{view["name"]}</span>
         </button>
       </div>
 
       <%!-- Compile errors, shown rather than swallowed. A DMN document that will
             not compile is the normal state of a document being edited, so this is
             information, not an alarm. --%>
-      <ul :if={@errors != []} id="decision-errors" class="rounded-box bg-error/10 p-3 text-sm">
-        <li :for={error <- @errors} class="font-mono">
+      <ul :if={@errors != []} id="decision-errors" class="ash-dmn-errors">
+        <li :for={error <- @errors}>
           {error["path"] || error[:path]}: {error["message"] || error[:message]}
         </li>
       </ul>
@@ -260,18 +267,20 @@ defmodule AshDecisions.Web.EditorLive do
         phx-hook="AshDecisionsEditor"
         phx-update="ignore"
         data-xml={@xml}
-        class="rounded-box border border-base-300 bg-base-100"
+        class="ash-dmn-panel"
       >
         <div class="ash-decisions-canvas"></div>
       </div>
 
       <%!-- Hidden forms. These are the reason this editor has server-side tests
             at all: they give save and publish a path that does not run through
-            the browser. See the moduledoc. --%>
-      <form id="decision-save-form" phx-submit="save_xml_form" class="hidden">
+            the browser. See the moduledoc. The HTML `hidden` attribute, not a
+            utility class: a host that never compiles Tailwind would render
+            these forms visibly. --%>
+      <form id="decision-save-form" phx-submit="save_xml_form" hidden>
         <input type="hidden" name="xml" value={@xml} />
       </form>
-      <form id="decision-publish-form" phx-submit="publish_form" class="hidden">
+      <form id="decision-publish-form" phx-submit="publish_form" hidden>
         <input type="hidden" name="xml" value={@xml} />
       </form>
     </div>
