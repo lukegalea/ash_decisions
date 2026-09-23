@@ -8,10 +8,13 @@ defmodule AshDecisions.EvaluatorTest do
   before a decision drawn in a designer could be run at all.
   """
 
-  use ExUnit.Case, async: false
+  use AshDecisions.DataCase, async: false
+
+  require Ash.Query
 
   alias AshDecisions.Dmn.Profile
   alias AshDecisions.Evaluator
+  alias AshDecisions.Test.{Definition, Evaluation}
 
   @discount File.read!("test/fixtures/discount.dmn")
 
@@ -38,6 +41,8 @@ defmodule AshDecisions.EvaluatorTest do
       graph: AshDecisions.Compiler.compile!(xml)
     }
   end
+
+  defp key, do: "k#{System.unique_integer([:positive])}"
 
   setup do
     Evaluator.flush_cache(:all)
@@ -141,6 +146,102 @@ defmodule AshDecisions.EvaluatorTest do
 
       assert :persistent_term.get({{AshDecisions.Evaluator, :model}, defn.content_hash}, :miss) ==
                :miss
+    end
+  end
+
+  describe "matched-rule provenance" do
+    # The engine reports which rules matched in the same pass that produces the value, so
+    # what the evaluator records is what decided -- never a second opinion re-derived here.
+    test "the result carries the engine's matched rule ids and hit policy" do
+      assert {:ok, result} =
+               Evaluator.evaluate(
+                 definition(@discount),
+                 %{"orderTotal" => 1200, "customerTier" => "gold"},
+                 record: false
+               )
+
+      assert Decimal.equal?(result.outputs, Decimal.new("0.15"))
+      assert result.matched_rule_ids == ["rule_gold_large"]
+      assert result.hit_policy == "UNIQUE"
+    end
+
+    test "a second rule is reported by its own id" do
+      assert {:ok, result} =
+               Evaluator.evaluate(
+                 definition(@discount),
+                 %{"orderTotal" => 500, "customerTier" => "gold"},
+                 record: false
+               )
+
+      assert Decimal.equal?(result.outputs, Decimal.new("0.10"))
+      assert result.matched_rule_ids == ["rule_gold_small"]
+    end
+
+    test "no matching rule traces an empty list, and the hit policy is still the table's" do
+      # No rule matches a "silver" tier: the table has no default output, so the engine
+      # answers nil, and the recorded provenance is the empty match plus the policy that
+      # reduced nothing.
+      assert {:ok, result} =
+               Evaluator.evaluate(
+                 definition(@discount),
+                 %{"orderTotal" => 500, "customerTier" => "silver"},
+                 record: false
+               )
+
+      assert result.outputs == nil
+      assert result.matched_rule_ids == []
+      assert result.hit_policy == "UNIQUE"
+    end
+
+    test "a recorded evaluation stores the real rule ids and hit policy" do
+      published =
+        Definition.create!(%{key: key(), name: "Discount", xml: @discount})
+        |> Definition.publish!()
+
+      correlation = Ecto.UUID.generate()
+
+      assert {:ok, _result} =
+               Evaluator.evaluate(published, %{"orderTotal" => 1200, "customerTier" => "gold"},
+                 evaluation_resource: Evaluation,
+                 correlation_id: correlation
+               )
+
+      assert [row] =
+               Evaluation
+               |> Ash.Query.filter(correlation_id == ^correlation)
+               |> Ash.read!(authorize?: false)
+
+      assert row.matched_rule_ids == ["rule_gold_large"]
+      assert row.hit_policy == "UNIQUE"
+      assert row.error == nil
+      # Decimals survive the jsonb round trip as strings rather than losing precision.
+      assert row.outputs == %{"value" => "0.15"}
+    end
+
+    test "a failed evaluation still records, with no provenance to report" do
+      published =
+        Definition.create!(%{key: key(), name: "Discount", xml: @discount})
+        |> Definition.publish!()
+
+      correlation = Ecto.UUID.generate()
+
+      assert {:error, _} =
+               Evaluator.evaluate(published, %{"orderTotal" => 1200, "customerTier" => "gold"},
+                 decision: "NoSuchDecision",
+                 evaluation_resource: Evaluation,
+                 correlation_id: correlation
+               )
+
+      assert [row] =
+               Evaluation
+               |> Ash.Query.filter(correlation_id == ^correlation)
+               |> Ash.read!(authorize?: false)
+
+      # The row names the decision that was asked for, even though it could not answer.
+      assert row.decision_id == "NoSuchDecision"
+      assert row.matched_rule_ids == []
+      assert row.hit_policy == nil
+      assert row.error != nil
     end
   end
 end

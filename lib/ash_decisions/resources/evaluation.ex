@@ -121,8 +121,11 @@ defmodule AshDecisions.Resources.Evaluation do
         end
 
         # The DMN id of the decision that was invoked, not of the document.
+        # Nullable on purpose: a failed evaluation is exactly the row an auditor
+        # most needs, and some failures (an ambiguous document, a document with
+        # no decision at all) happen before any decision could be resolved.
         attribute :decision_id, :string do
-          allow_nil?(false)
+          allow_nil?(true)
           public?(true)
         end
 

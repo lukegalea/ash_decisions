@@ -23,17 +23,15 @@ defmodule AshDecisions.Evaluator do
   per published decision is the right side of that trade. There is no eviction — the number of
   published definitions is bounded by deployment, not by traffic.
 
-  ## What is recorded, and one thing that is not
+  ## What is recorded
 
   Each evaluation writes an `Evaluation` row: the decision, the definition's key and version,
-  the inputs, the outputs and how long it took. That is the evidence an auditor asks for.
-
-  **Which rule fired is not recorded**, and the reason is a limitation rather than an
-  oversight: `Boxic.DMN.evaluate/3` returns the decision's value and nothing about how it
-  reached it. We could re-evaluate every input entry against the inputs ourselves and report
-  the rules *we* think matched — and that second opinion could disagree with the engine's,
-  which is worse than not answering. The field stays empty until the engine can say, and the
-  moment it can, the column is already there.
+  the inputs, the outputs and how long it took. That is the evidence an auditor asks for —
+  and since the engine can say so, also **which rules fired**: `matched_rule_ids` is the
+  engine's own account of the decision-table rules that matched the inputs, and `hit_policy`
+  is the policy that reduced them to the answer. Both come from
+  `Boxic.DMN.evaluate_with_trace/3` in the same pass that produces the value, so what is
+  recorded is what decided, never a second opinion re-derived here.
   """
 
   require Logger
@@ -50,7 +48,9 @@ defmodule AshDecisions.Evaluator do
           decision: String.t(),
           definition_key: String.t(),
           definition_version: integer(),
-          duration_us: non_neg_integer()
+          duration_us: non_neg_integer(),
+          matched_rule_ids: [String.t()],
+          hit_policy: String.t() | nil
         }
 
   @doc """
@@ -74,22 +74,43 @@ defmodule AshDecisions.Evaluator do
 
     with {:ok, model} <- model_for(definition),
          {:ok, decision} <- decision_name(definition, opts),
-         {:ok, outputs} <- run(model, decision, inputs, opts) do
+         {:ok, outputs, trace} <- run(model, decision, inputs, opts) do
       result = %{
         outputs: outputs,
         decision: decision,
         definition_key: definition.key,
         definition_version: definition.version,
-        duration_us: System.monotonic_time(:microsecond) - started
+        duration_us: System.monotonic_time(:microsecond) - started,
+        matched_rule_ids: trace.matched_rules,
+        hit_policy: hit_policy_string(trace.hit_policy)
       }
 
       record(definition, inputs, result, nil, opts)
       {:ok, result}
     else
       {:error, reason} = error ->
-        record(definition, inputs, nil, reason, opts)
+        # A failed evaluation is still evidence, and it names the decision it failed on
+        # when that could be resolved. `decision_name/2` is a pure lookup over the graph,
+        # so re-deriving it here cannot disagree with the run that failed.
+        decision =
+          case decision_name(definition, opts) do
+            {:ok, name} -> name
+            _ -> nil
+          end
+
+        record(definition, inputs, failed_result(decision, started), reason, opts)
         error
     end
+  end
+
+  defp failed_result(decision, started) do
+    %{
+      outputs: nil,
+      decision: decision,
+      duration_us: System.monotonic_time(:microsecond) - started,
+      matched_rule_ids: [],
+      hit_policy: nil
+    }
   end
 
   @doc "Like `evaluate/3`, raising on failure."
@@ -198,15 +219,23 @@ defmodule AshDecisions.Evaluator do
     timeout = Keyword.get(opts, :timeout, @default_timeout_ms)
     context = Feel.to_feel_value(inputs)
 
-    task = Task.async(fn -> Boxic.DMN.evaluate(model, decision, context) end)
+    task = Task.async(fn -> Boxic.DMN.evaluate_with_trace(model, decision, context) end)
 
     case Task.yield(task, timeout) || Task.shutdown(task, :brutal_kill) do
-      {:ok, {:ok, outputs}} -> {:ok, outputs}
+      {:ok, {:ok, outputs, trace}} -> {:ok, outputs, trace}
       {:ok, {:error, reason}} -> {:error, {:evaluation_failed, reason}}
       {:exit, reason} -> {:error, {:evaluation_crashed, reason}}
       nil -> {:error, {:evaluation_timeout, timeout}}
     end
   end
+
+  # The engine traces the hit policy as an atom (`:priority`); the resource stores the DMN
+  # spelling (`"PRIORITY"`), the same form the definition's graph carries. The atom set is
+  # fixed by the engine's loader, so the round trip is exact.
+  defp hit_policy_string(nil), do: nil
+
+  defp hit_policy_string(policy) when is_atom(policy),
+    do: policy |> Atom.to_string() |> String.upcase()
 
   # ── evidence ─────────────────────────────────────────────────────────────
 
@@ -215,21 +244,7 @@ defmodule AshDecisions.Evaluator do
 
     if Keyword.get(opts, :record, true) and resource do
       scope = Keyword.get(opts, :scope, %AshDecisions.Scope{})
-
-      attrs = %{
-        definition_id: Map.get(definition, :id),
-        definition_key: definition.key,
-        definition_version: definition.version,
-        decision_id: result && result.decision,
-        inputs: jsonable(inputs),
-        outputs: result && jsonable(%{"value" => result.outputs}),
-        # See the moduledoc: the engine does not report which rules matched, and a second
-        # opinion computed here could disagree with the one that actually decided.
-        matched_rule_ids: [],
-        duration_us: result && result.duration_us,
-        error: error && %{"reason" => inspect(error, limit: 5)},
-        correlation_id: Keyword.get(opts, :correlation_id)
-      }
+      attrs = evaluation_attrs(definition, inputs, result, error, opts)
 
       resource.create(attrs, AshDecisions.Scope.engine(scope))
     end
@@ -241,6 +256,27 @@ defmodule AshDecisions.Evaluator do
       Logger.warning("ash_decisions: could not record evaluation: #{Exception.message(e)}")
       :ok
   end
+
+  defp evaluation_attrs(definition, inputs, result, error, opts) do
+    %{
+      definition_id: Map.get(definition, :id),
+      definition_key: definition.key,
+      definition_version: definition.version,
+      decision_id: result && result.decision,
+      inputs: jsonable(inputs),
+      outputs: result && jsonable(%{"value" => result.outputs}),
+      # From the same engine pass that produced the outputs: which decision-table rules
+      # matched, and the hit policy that reduced them. See the moduledoc.
+      matched_rule_ids: matched_rule_ids(result),
+      hit_policy: result && result.hit_policy,
+      duration_us: result && result.duration_us,
+      error: error && %{"reason" => inspect(error, limit: 5)},
+      correlation_id: Keyword.get(opts, :correlation_id)
+    }
+  end
+
+  defp matched_rule_ids(nil), do: []
+  defp matched_rule_ids(%{matched_rule_ids: ids}), do: ids
 
   # Whatever the engine returned has to survive a jsonb round trip. Decimals in particular
   # encode as strings rather than losing precision to a float.

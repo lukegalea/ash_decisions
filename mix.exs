@@ -72,7 +72,15 @@ defmodule AshDecisions.MixProject do
       # evaluator; both are Apache-2.0. See docs/adr -- this package is an Ash
       # layer over them (versioning, tenancy, policy, audit, publish-time
       # analysis, the designer), not a second engine.
-      {:boxic_dmn, "~> 0.3"},
+      #
+      # `boxic_dmn` is pinned to a fork of upstream (koenusz/boxic): the engine
+      # always computed which decision-table rules matched, but upstream's
+      # public API discarded that provenance, which left every recorded
+      # Evaluation with an empty `matched_rule_ids`. The fork adds
+      # `Boxic.DMN.evaluate_with_trace/3,4` (see the fork's README) and changes
+      # nothing else; the ref is the audited revision this package tracks.
+      {:boxic_dmn,
+       github: "lukegalea/boxic_dmn", ref: "7cb79cdc96562228e87fc7c51f63a046eb88f467"},
       {:boxic_feel, "~> 0.2"},
       {:decimal, "~> 3.1"},
       {:jason, "~> 1.2"},
