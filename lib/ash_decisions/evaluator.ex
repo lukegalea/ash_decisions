@@ -98,15 +98,17 @@ defmodule AshDecisions.Evaluator do
             _ -> nil
           end
 
-        record(definition, inputs, failed_result(decision, started), reason, opts)
+        record(definition, inputs, failed_result(definition, decision, started), reason, opts)
         error
     end
   end
 
-  defp failed_result(decision, started) do
+  defp failed_result(definition, decision, started) do
     %{
       outputs: nil,
       decision: decision,
+      definition_key: definition.key,
+      definition_version: definition.version,
       duration_us: System.monotonic_time(:microsecond) - started,
       matched_rule_ids: [],
       hit_policy: nil
@@ -260,23 +262,20 @@ defmodule AshDecisions.Evaluator do
   defp evaluation_attrs(definition, inputs, result, error, opts) do
     %{
       definition_id: Map.get(definition, :id),
-      definition_key: definition.key,
-      definition_version: definition.version,
-      decision_id: result && result.decision,
+      definition_key: result.definition_key,
+      definition_version: result.definition_version,
+      decision_id: result.decision,
       inputs: jsonable(inputs),
-      outputs: result && jsonable(%{"value" => result.outputs}),
+      outputs: result.outputs && jsonable(%{"value" => result.outputs}),
       # From the same engine pass that produced the outputs: which decision-table rules
       # matched, and the hit policy that reduced them. See the moduledoc.
-      matched_rule_ids: matched_rule_ids(result),
-      hit_policy: result && result.hit_policy,
-      duration_us: result && result.duration_us,
+      matched_rule_ids: result.matched_rule_ids,
+      hit_policy: result.hit_policy,
+      duration_us: result.duration_us,
       error: error && %{"reason" => inspect(error, limit: 5)},
       correlation_id: Keyword.get(opts, :correlation_id)
     }
   end
-
-  defp matched_rule_ids(nil), do: []
-  defp matched_rule_ids(%{matched_rule_ids: ids}), do: ids
 
   # Whatever the engine returned has to survive a jsonb round trip. Decimals in particular
   # encode as strings rather than losing precision to a float.
