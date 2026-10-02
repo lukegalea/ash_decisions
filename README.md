@@ -128,6 +128,10 @@ that is what upstream ships, and there is no 1.2/1.3/1.4 corpus to measure again
 so `libxml2` must be on `PATH`. Without it every model fails to load with
 `:schema_validator_unavailable`.
 
+## Contributing
+
+Agents: read [AGENTS.md](AGENTS.md) before you change this repository. It links the agent constitution (`AGENT_PRINCIPLES.md`).
+
 ## Licence
 
 MIT. The vendored TCK corpus keeps its own terms — see `priv/tck/ATTRIBUTION.md`.
