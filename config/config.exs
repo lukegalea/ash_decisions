@@ -9,6 +9,13 @@ import Config
 # repo and domains. Same pattern as ash_bpmn.
 config :ash_decisions, ecto_repos: [AshDecisions.TestRepo]
 
+# Required since ash 3.33: every application compiling its own resources must
+# make an explicit choice about how string length constraints count. Codepoints
+# is the recommendation -- it is how SQL counts length, so Elixir-side
+# validation agrees with what the data layer will store and enforce. Same
+# setting as ash_bpmn.
+config :ash, default_string_length_count: :codepoints
+
 if config_env() in [:dev, :test] do
   import_config "#{config_env()}.exs"
 end
