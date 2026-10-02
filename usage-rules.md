@@ -70,6 +70,26 @@ A decision answers a question; the caller decides what to do with the answer.
     got there. Do not compute a second opinion: one that disagrees with the engine that
     actually decided is worse than no answer.
 
+## Publish-time verifiers
+
+A host may gate publication on its own evidence (e.g. "this band table has a
+calibration run above min-n") without forking the resource:
+
+    config :ash_decisions, :publish_verifiers, [
+      {MyApp.Compliance.BandTableGate, :verify, []}
+    ]
+
+Each entry is an MFA (`{Mod, :fun, args}`) or a bare module (called as
+`Mod.verify/1`). They run **only on the publish action** — evaluation never
+consults them — and receive the definition's identity as plain data:
+`%{id, key, version, content_hash, status}`, the same shape a certification
+record carries, so a band-table gate keys off the family tag the band-table
+naming convention puts in the key. A verifier returns `:ok` or
+`{:error, reason}`; the **first refusal blocks the publish** and its reason
+travels to the caller; a verifier that raises counts as a refusal. Empty
+config (the default) leaves the publish action exactly as it was. See
+`AshDecisions.Config.publish_verifiers/0`.
+
 ## Testing
 
 - `mix ash_decisions.tck` runs the vendored DMN TCK corpus and **gates** on it: an unlisted

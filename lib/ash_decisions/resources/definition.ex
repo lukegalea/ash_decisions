@@ -159,6 +159,7 @@ defmodule AshDecisions.Resources.Definition do
           validate(AshDecisions.Resources.Definition.StatusIsDraft)
           validate(AshDecisions.Resources.Definition.ErrorsEmpty)
           validate(AshDecisions.Resources.Definition.VerificationClean)
+          validate(AshDecisions.Resources.Definition.ConfiguredVerifiers)
           change(set_attribute(:status, :published))
         end
 
@@ -537,4 +538,69 @@ defmodule AshDecisions.Resources.Definition.StatusIsPublished do
       {:error, field: :status, message: "can only retire a published definition"}
     end
   end
+end
+
+defmodule AshDecisions.Resources.Definition.ConfiguredVerifiers do
+  @moduledoc false
+
+  # The host's publish-time gates (`config :ash_decisions,
+  # :publish_verifiers`) — see `AshDecisions.Config.publish_verifiers/0` for
+  # the contract. They run ONLY here, on the publish action: evaluation never
+  # consults them. The first refusal blocks, its reason travelling to the
+  # caller; a verifier that raises counts as a refusal (a misconfigured gate
+  # must never become a silent publish). Empty config is the default and the
+  # action is unchanged.
+  use Ash.Resource.Validation
+
+  @impl true
+  def validate(changeset, _opts, _context) do
+    verifiers = AshDecisions.Config.publish_verifiers()
+    run_all(verifiers, identity(changeset))
+  end
+
+  # Empty config is the default: the hook is inert until a host registers.
+  defp run_all([], _definition), do: :ok
+
+  defp run_all(verifiers, definition) do
+    verdict =
+      Enum.reduce_while(verifiers, :ok, fn {m, f, a}, :ok ->
+        case run_verifier(m, f, a, definition) do
+          :ok -> {:cont, :ok}
+          {:error, reason} -> {:halt, {:error, reason}}
+          other -> {:halt, {:error, other}}
+        end
+      end)
+
+    case verdict do
+      :ok ->
+        :ok
+
+      {:error, reason} ->
+        {:error,
+         field: :key,
+         message: "cannot publish: a configured publish verifier refused: " <> render(reason)}
+    end
+  end
+
+  defp run_verifier(m, f, a, definition) do
+    apply(m, f, List.wrap(a) ++ [definition])
+  rescue
+    error -> {:error, error}
+  end
+
+  # The identity a verifier gates on: the same shape a certification record
+  # carries, so a host's band-table check can key off it directly.
+  defp identity(changeset) do
+    %{
+      id: Ash.Changeset.get_attribute(changeset, :id),
+      key: Ash.Changeset.get_attribute(changeset, :key),
+      version: Ash.Changeset.get_attribute(changeset, :version),
+      content_hash: Ash.Changeset.get_attribute(changeset, :content_hash),
+      status: Ash.Changeset.get_attribute(changeset, :status)
+    }
+  end
+
+  defp render(reason) when is_exception(reason), do: Exception.message(reason)
+  defp render(reason) when is_binary(reason), do: reason
+  defp render(reason), do: inspect(reason)
 end

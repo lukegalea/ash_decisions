@@ -140,4 +140,42 @@ defmodule AshDecisions.Config do
   def incomplete_tables do
     Application.get_env(:ash_decisions, :incomplete_tables, :warn)
   end
+
+  @doc """
+  The configured publish-time verifiers (default `[]` — the hook is inert
+  until a host registers).
+
+  A list of MFAs (`{Mod, :fun, args}`) or bare modules (called as
+  `Mod.verify/1`), invoked in order when a definition is PUBLISHED — and
+  only then: evaluation never consults them. Each verifier receives the
+  definition's identity as plain data —
+
+      %{
+        id: uuid,
+        key: "bands_clinic_triage",
+        version: 3,
+        content_hash: "…",
+        status: :draft
+      }
+
+  — the same identity a certification record carries
+  (`definition_key`/`definition_version`/`content_hash`), so a band-table
+  gate (e.g. ash_judgments' calibration verifier, keyed on the family tag
+  the band-table naming convention puts in the key) has everything it
+  needs to find its own evidence.
+
+  Each verifier returns `:ok` or `{:error, reason}`. The FIRST refusal
+  blocks the publication and its reason travels to the caller in the
+  validation error; a verifier that raises is treated as a refusal (a
+  misconfigured gate must never become a silent publish).
+  """
+  @spec publish_verifiers() :: [{module(), atom(), [term()]}]
+  def publish_verifiers do
+    Application.get_env(:ash_decisions, :publish_verifiers, [])
+    |> List.wrap()
+    |> Enum.map(fn
+      {m, f, a} -> {m, f, a}
+      m when is_atom(m) -> {m, :verify, []}
+    end)
+  end
 end
