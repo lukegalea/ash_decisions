@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20230324/MODEL/"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             id="bands_clinic_triage_definitions"
+             name="bands_clinic_triage"
+             namespace="https://ash-judgments.test/bands_clinic_triage"
+             expressionLanguage="https://www.omg.org/spec/DMN/20230324/FEEL/"
+             typeLanguage="https://www.omg.org/spec/DMN/20230324/FEEL/">
+  <inputData id="input_p_supports" name="p_supports">
+    <variable id="var_p_supports" name="p_supports" typeRef="number"/>
+  </inputData>
+  <decision id="decision_bands_clinic_triage" name="bands_clinic_triage">
+    <variable id="var_bands_clinic_triage" name="bands_clinic_triage" typeRef="string"/>
+    <informationRequirement id="req_p_supports">
+      <requiredInput href="#input_p_supports"/>
+    </informationRequirement>
+    <decisionTable id="table_bands_clinic_triage" hitPolicy="UNIQUE" outputLabel="band">
+      <input id="clause_p_supports" label="Conformal score">
+        <inputExpression id="expr_p_supports" typeRef="number">
+          <text>p_supports</text>
+        </inputExpression>
+      </input>
+      <output id="clause_band" name="band" label="band" typeRef="string"/>
+      <output id="clause_reason_code" name="reason_code" label="reason_code" typeRef="string"/>
+      <rule id="rule_admit">
+        <inputEntry id="rule_admit_0"><text>&gt;= 0.93</text></inputEntry>
+        <outputEntry id="rule_admit_1"><text>"admit"</text></outputEntry>
+        <outputEntry id="rule_admit_2"><text>"conformal_threshold_met"</text></outputEntry>
+      </rule>
+      <rule id="rule_review">
+        <inputEntry id="rule_review_0"><text>&lt; 0.93</text></inputEntry>
+        <outputEntry id="rule_review_1"><text>"review"</text></outputEntry>
+        <outputEntry id="rule_review_2"><text>"below_conformal_threshold"</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

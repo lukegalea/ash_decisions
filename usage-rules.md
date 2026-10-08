@@ -90,6 +90,27 @@ travels to the caller; a verifier that raises counts as a refusal. Empty
 config (the default) leaves the publish action exactly as it was. See
 `AshDecisions.Config.publish_verifiers/0`.
 
+## Landing a generated band table
+
+A calibration pipeline (ash_judgments' `ProposalDmn` renderer is the producing example)
+finishes with a two-band DMN document — the score gates on the earned threshold, `admit`
+above it, `review` below it, and **no default rule**, so a score that is absent or not a
+number matches no row and the empty match is a refusal. `AshDecisions.BandTable` is where
+that document lands:
+
+    {:ok, published} = AshDecisions.BandTable.land(MyApp.Decisions.Definition, xml)
+
+Import checks the band contract — one decision, `UNIQUE` hit policy, a string `band`
+output, no default output entry, and a variable/shape pair the engine can actually
+evaluate — and the document then goes through the ordinary lifecycle: draft, compile,
+publish-time verification, and any configured `publish_verifiers`. Pass
+`publish?: false` to stop at the draft when certification is a person's act, and let
+them run `publish!/1` after reading it. The XML is stored byte for byte; the key is the
+decision's name, which is where the `bands_<family>` naming convention puts the family
+tag a calibration gate keys off. There is no band-table resource and no rule-row import:
+the document is the artifact, and a second copy of the rules is a disagreement waiting
+to happen.
+
 ## Testing
 
 - `mix ash_decisions.tck` runs the vendored DMN TCK corpus and **gates** on it: an unlisted
