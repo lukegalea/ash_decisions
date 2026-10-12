@@ -9,8 +9,8 @@ defmodule AshDecisions.WebTest do
   Every assertion here goes through the hidden save/publish forms rather than the
   dmn-js hook, which is the whole reason those forms exist: an editor whose only
   path to the database runs through JavaScript is an editor with no server-side
-  tests, and the parts most worth testing — that a draft is created on first
-  visit, that saving recompiles, that publishing freezes a version — are all
+  tests, and the parts most worth testing — that opening stores nothing, that
+  the first save creates the draft, that saving recompiles, that publishing freezes a version — are all
   server-side.
 
   What is deliberately *not* asserted here is anything about dmn-js itself. That
@@ -19,6 +19,8 @@ defmodule AshDecisions.WebTest do
   """
 
   use AshDecisions.WebConnCase, async: false
+
+  alias AshDecisions.Web.EditorLive.Impl
 
   @table_xml """
   <?xml version="1.0" encoding="UTF-8"?>
@@ -45,8 +47,18 @@ defmodule AshDecisions.WebTest do
   </definitions>
   """
 
+  defp stored(key \\ "web_test") do
+    AshDecisions.Test.Definition
+    |> Ash.Query.for_read(:read, %{}, authorize?: false)
+    |> Ash.Query.do_filter(key: key)
+    |> Ash.read!(authorize?: false)
+  end
+
+  # The test layout renders flash outside the LiveView, so read it off the socket.
+  defp flash(view), do: :sys.get_state(view.pid).socket.assigns.flash
+
   describe "opening the editor" do
-    test "creates a draft on first visit, so there is always something to edit", %{conn: conn} do
+    test "shows a starter document and stores nothing until a save", %{conn: conn} do
       {:ok, view, _html} = live(conn, "/editor")
 
       # The editor's contract with the hook is the `data-xml` attribute, so the
@@ -55,14 +67,19 @@ defmodule AshDecisions.WebTest do
       assert has_element?(view, "#decision-editor[data-xml]")
       assert has_element?(view, "#decision-save")
       assert has_element?(view, "#decision-publish")
+      assert has_element?(view, "#decision-origin", "nothing is stored until you save")
 
-      drafts =
-        AshDecisions.Test.Definition
-        |> Ash.Query.for_read(:read, %{}, authorize?: false)
-        |> Ash.Query.do_filter(key: "web_test", status: :draft)
-        |> Ash.read!(authorize?: false)
+      assert stored() == []
+    end
 
-      assert [%{version: 1}] = drafts
+    test "the first save creates the draft, the next edits it", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/editor")
+
+      view |> element("#decision-save-form") |> render_submit(%{"xml" => @table_xml})
+      assert [%{status: :draft, version: 1}] = stored()
+
+      view |> element("#decision-save-form") |> render_submit(%{"xml" => @table_xml})
+      assert [%{status: :draft, version: 1}] = stored()
     end
 
     test "the template it creates is a document dmn-js could open", %{conn: conn} do
@@ -84,12 +101,62 @@ defmodule AshDecisions.WebTest do
       {:ok, view, _html} = live(conn, "/decisions/routed_decision/editor")
 
       assert render(view) =~ "routed_decision"
+      assert stored("routed_decision") == []
+    end
 
-      assert AshDecisions.Test.Definition
-             |> Ash.Query.for_read(:read, %{}, authorize?: false)
-             |> Ash.Query.do_filter(key: "routed_decision")
-             |> Ash.read!(authorize?: false)
-             |> length() == 1
+    test "a key from the route cannot break out of the template's attributes" do
+      xml = Impl.template_xml(~s(a"><x y="))
+
+      assert xml =~ ~s(id="Definitions_a___x_y__")
+      assert xml =~ ~s(name="a&quot;&gt;&lt;x y=&quot;")
+    end
+  end
+
+  describe "a baseline is shown read-only" do
+    test "opening a key with only a baseline shows it and stores nothing", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/baseline-editor")
+
+      assert stored() == []
+      assert has_element?(view, "#decision-origin", "baseline v2")
+      assert has_element?(view, "#decision-editor[data-xml*='Baseline decision']")
+      assert has_element?(view, "#decision-customize")
+      refute has_element?(view, "#decision-save")
+      refute has_element?(view, "#decision-publish")
+      refute has_element?(view, "#decision-revert")
+    end
+
+    test "a save or publish that arrives anyway is refused", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/baseline-editor")
+
+      view |> element("#decision-save-form") |> render_submit(%{"xml" => @table_xml})
+      assert flash(view)["error"] =~ "read-only"
+
+      view |> element("#decision-publish-form") |> render_submit(%{"xml" => @table_xml})
+
+      assert stored() == []
+    end
+
+    test "Customize asks the host for a draft and opens it for editing", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/baseline-editor")
+
+      view |> element("#decision-customize") |> render_click()
+
+      assert flash(view)["info"] =~ "Draft created from the baseline"
+      assert [%{status: :draft, name: "Customized"}] = stored()
+      assert has_element?(view, "#decision-save")
+      refute has_element?(view, "#decision-customize")
+      assert_push_event(view, "load_xml", %{xml: xml})
+      assert xml =~ "Baseline decision"
+    end
+
+    test "a refused Customize says why and stays read-only", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/refusing-baseline-editor")
+
+      view |> element("#decision-customize") |> render_click()
+
+      assert flash(view)["error"] == "No baseline to customize from."
+      assert stored() == []
+      assert has_element?(view, "#decision-customize")
     end
   end
 

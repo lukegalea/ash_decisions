@@ -24,6 +24,24 @@ defmodule AshDecisions.Web.EditorLive do
       mount with a message saying so, rather than rendering an empty editor.
     * `:actor` — optional `{module, function, args}`, called as
       `module.function(args ++ [socket])`.
+    * `:baseline` — optional `{module, function, args}`, called as
+      `module.function(args ++ [decision_key, socket])` when the scope has
+      neither a draft nor a published definition of its own for the key. Answer
+      `nil`, or a map (or definition struct) with `:xml` and optionally
+      `:version` and `:name`: the decision this scope would run if it changed
+      nothing. The editor shows it **read-only**.
+    * `:customize` — optional `{module, function, args}`, called as
+      `module.function(args ++ [decision_key, socket])` when someone presses
+      Customize on a read-only baseline. Expected to create the scope's own
+      draft and answer `{:ok, draft}` or `{:error, message}`. Without it a
+      baseline is view-only.
+
+  ## Opening the editor writes nothing
+
+  Looking is not editing. The editor reads what exists for the key and shows
+  it; the draft row is created by the **first save**, from the document being
+  saved. Before then it shows, in order: the scope's draft; its latest
+  published definition; the `:baseline`, read-only; or a starter decision table.
 
   ## The view list is server-rendered, and that is deliberate
 
@@ -60,6 +78,8 @@ defmodule AshDecisions.Web.EditorLive do
     # rather than a module, which fails as `ArgumentError: 2nd argument: not an
     # atom` at the first call. ash_bpmn's LiveViews carry the same note.
     actor_mfa = Keyword.get(opts, :actor, nil)
+    baseline_mfa = Keyword.get(opts, :baseline, nil)
+    customize_mfa = Keyword.get(opts, :customize, nil)
 
     quote do
       use Phoenix.LiveView
@@ -69,6 +89,8 @@ defmodule AshDecisions.Web.EditorLive do
       @ash_decisions_domain unquote(domain)
       @ash_decisions_key unquote(decision_key)
       @ash_decisions_actor_mfa unquote(actor_mfa)
+      @ash_decisions_baseline_mfa unquote(baseline_mfa)
+      @ash_decisions_customize_mfa unquote(customize_mfa)
 
       # ── Mount & params ──────────────────────────────────────────────────
 
@@ -80,6 +102,12 @@ defmodule AshDecisions.Web.EditorLive do
            definition: nil,
            xml: "",
            latest_published: nil,
+           # Where the canvas came from: :draft, :published, :baseline or :template.
+           # Only a draft is a row; everything else is shown, not stored.
+           origin: nil,
+           baseline: nil,
+           read_only: false,
+           can_customize: @ash_decisions_customize_mfa != nil,
            views: [],
            active_view: nil,
            dirty: false,
@@ -94,7 +122,7 @@ defmodule AshDecisions.Web.EditorLive do
         socket =
           socket
           |> assign(:definition_key, EditorLive.Impl.resolve_key(params, @ash_decisions_key))
-          |> EditorLive.Impl.load_or_create(@ash_decisions_domain)
+          |> EditorLive.Impl.load(@ash_decisions_domain, @ash_decisions_baseline_mfa)
 
         if connected?(socket) do
           {:noreply, push_event(socket, "load_xml", %{xml: socket.assigns.xml})}
@@ -162,12 +190,23 @@ defmodule AshDecisions.Web.EditorLive do
 
       @impl true
       def handle_event("revert", _params, socket) do
-        socket = socket |> EditorLive.Impl.load_or_create(@ash_decisions_domain)
+        socket = EditorLive.Impl.load(socket, @ash_decisions_domain, @ash_decisions_baseline_mfa)
 
         {:noreply,
          socket
          |> assign(:dirty, false)
          |> push_event("load_xml", %{xml: socket.assigns.xml})}
+      end
+
+      @impl true
+      def handle_event("customize", _params, socket) do
+        {:noreply,
+         EditorLive.Impl.customize(
+           socket,
+           @ash_decisions_domain,
+           @ash_decisions_customize_mfa,
+           @ash_decisions_baseline_mfa
+         )}
       end
 
       @impl true
@@ -215,6 +254,13 @@ defmodule AshDecisions.Web.EditorLive do
             <%= if @definition do %>
               draft v{@definition.version}
             <% end %>
+            <%!-- No draft row yet: say what the canvas is showing instead. --%>
+            <span :if={@origin == :template} id="decision-origin">
+              new · nothing is stored until you save
+            </span>
+            <span :if={@origin == :baseline} id="decision-origin">
+              baseline{if @baseline.version, do: " v#{@baseline.version}"} · read-only
+            </span>
             <%= if @latest_published do %>
               · published v{@latest_published.version}
             <% end %>
@@ -226,13 +272,28 @@ defmodule AshDecisions.Web.EditorLive do
 
         <div class="ash-dmn-actions">
           <button id="decision-fit" class="ash-dmn-btn" phx-click="fit">Fit</button>
-          <button id="decision-revert" class="ash-dmn-btn" phx-click="revert">
-            Revert
-          </button>
-          <button id="decision-save" class="ash-dmn-btn" phx-click="collect-xml">Save</button>
-          <button id="decision-publish" class="ash-dmn-btn ash-dmn-btn--primary" phx-click="publish">
-            Publish
-          </button>
+          <%= if @read_only do %>
+            <button
+              :if={@can_customize}
+              id="decision-customize"
+              class="ash-dmn-btn ash-dmn-btn--primary"
+              phx-click="customize"
+            >
+              Customize
+            </button>
+          <% else %>
+            <button id="decision-revert" class="ash-dmn-btn" phx-click="revert">
+              Revert
+            </button>
+            <button id="decision-save" class="ash-dmn-btn" phx-click="collect-xml">Save</button>
+            <button
+              id="decision-publish"
+              class="ash-dmn-btn ash-dmn-btn--primary"
+              phx-click="publish"
+            >
+              Publish
+            </button>
+          <% end %>
         </div>
       </div>
 
