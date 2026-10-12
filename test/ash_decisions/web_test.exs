@@ -284,7 +284,8 @@ defmodule AshDecisions.WebTest do
 
       Definition.publish!(draft, authorize?: false)
 
-      assert {:error, _} = Definition.discard(draft, authorize?: false)
+      assert {:error, %Ash.Error.Invalid{} = error} = Definition.discard(draft, authorize?: false)
+      assert Exception.message(error) =~ "draft"
       assert [%{status: :published}] = stored()
     end
   end
