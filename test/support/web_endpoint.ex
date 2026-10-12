@@ -37,6 +37,26 @@ defmodule AshDecisions.Web.EditorWrapper do
     decision: "web_test"
 end
 
+defmodule AshDecisions.Web.BaselineEditorWrapper do
+  @moduledoc false
+
+  use AshDecisions.Web.EditorLive,
+    domain: AshDecisions.Test.Domain,
+    decision: "web_test",
+    baseline: {AshDecisions.Test.Baselines, :baseline, []},
+    customize: {AshDecisions.Test.Baselines, :customize, []}
+end
+
+defmodule AshDecisions.Web.RefusingBaselineEditorWrapper do
+  @moduledoc false
+
+  use AshDecisions.Web.EditorLive,
+    domain: AshDecisions.Test.Domain,
+    decision: "web_test",
+    baseline: {AshDecisions.Test.Baselines, :baseline, []},
+    customize: {AshDecisions.Test.Baselines, :refuse, []}
+end
+
 defmodule AshDecisions.Web.TestRouter do
   @moduledoc false
 
@@ -56,6 +76,11 @@ defmodule AshDecisions.Web.TestRouter do
 
     live("/editor", EditorWrapper, :index, as: :editor)
     live("/decisions/:key/editor", EditorWrapper, :show, as: :keyed_editor)
+    live("/baseline-editor", BaselineEditorWrapper, :index, as: :baseline_editor)
+
+    live("/refusing-baseline-editor", RefusingBaselineEditorWrapper, :index,
+      as: :refusing_baseline_editor
+    )
   end
 end
 
