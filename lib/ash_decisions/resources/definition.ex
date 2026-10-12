@@ -36,8 +36,10 @@ defmodule AshDecisions.Resources.Definition do
 
   ## The lifecycle
 
-  `draft → published → retired`, and nothing else. A draft is the only status
-  whose XML can be changed, there is at most one draft per key (a partial unique
+  `draft → published → retired`, and nothing else; a draft may also be
+  discarded (`discard/2`), which deletes it and is refused for anything that is
+  not a draft -- by validation, and by a `status = 'draft'` filter on the delete,
+  so a stale struct loaded as a draft and published since matches nothing. A draft is the only status whose XML can be changed, there is at most one draft per key (a partial unique
   index enforces it, so two designers cannot both open "the" draft), and
   publishing is refused while `errors` is non-empty.
 
@@ -170,6 +172,14 @@ defmodule AshDecisions.Resources.Definition do
           validate(AshDecisions.Resources.Definition.StatusIsPublished)
           change(set_attribute(:status, :retired))
         end
+
+        # Drafts only: the filter holds the rule at the database too (see moduledoc).
+        destroy :discard do
+          require_atomic?(false)
+
+          validate(AshDecisions.Resources.Definition.StatusIsDraft)
+          change(filter(status: :draft))
+        end
       end
 
       code_interface do
@@ -177,6 +187,7 @@ defmodule AshDecisions.Resources.Definition do
         define(:publish, action: :publish)
         define(:retire, action: :retire)
         define(:save_xml, action: :save_xml, args: [:xml])
+        define(:discard, action: :discard)
         define(:by_key_version, action: :read, get_by: [:key, :version], get?: true)
         define(:latest_published, action: :latest_published, args: [:key])
       end
