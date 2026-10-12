@@ -65,6 +65,8 @@ defmodule AshDecisions.Web.EditorLive do
   ## Events
 
   Client → server: `save_xml`, `views_changed`, `dirty_changed`, `import_error`.
+  Buttons: `collect-xml` (save), `publish`, `revert`, `customize`, `discard` (the
+  draft, through the definition's `:discard` action), `fit`.
   Server → client: `load_xml`, `collect_xml`, `open_view`, `fit`.
   """
 
@@ -198,15 +200,14 @@ defmodule AshDecisions.Web.EditorLive do
          |> push_event("load_xml", %{xml: socket.assigns.xml})}
       end
 
+      # Customize and Discard both swap the canvas for what the key shows next.
       @impl true
-      def handle_event("customize", _params, socket) do
+      def handle_event(event, _params, socket) when event in ["customize", "discard"] do
         {:noreply,
-         EditorLive.Impl.customize(
-           socket,
-           @ash_decisions_domain,
-           @ash_decisions_customize_mfa,
-           @ash_decisions_baseline_mfa
-         )}
+         EditorLive.Impl.swap(event, socket, @ash_decisions_domain, {
+           @ash_decisions_baseline_mfa,
+           @ash_decisions_customize_mfa
+         })}
       end
 
       @impl true
@@ -282,6 +283,17 @@ defmodule AshDecisions.Web.EditorLive do
               Customize
             </button>
           <% else %>
+            <%!-- Only a stored draft can be discarded; a published decision is retired,
+                  never deleted. --%>
+            <button
+              :if={@origin == :draft and @definition.status == :draft}
+              id="decision-discard"
+              class="ash-dmn-btn"
+              phx-click="discard"
+              data-confirm="Discard this draft? Unpublished changes are lost."
+            >
+              Discard draft
+            </button>
             <button id="decision-revert" class="ash-dmn-btn" phx-click="revert">
               Revert
             </button>

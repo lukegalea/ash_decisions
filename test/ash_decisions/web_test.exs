@@ -20,6 +20,7 @@ defmodule AshDecisions.WebTest do
 
   use AshDecisions.WebConnCase, async: false
 
+  alias AshDecisions.Test.Definition
   alias AshDecisions.Web.EditorLive.Impl
 
   @table_xml """
@@ -48,7 +49,7 @@ defmodule AshDecisions.WebTest do
   """
 
   defp stored(key \\ "web_test") do
-    AshDecisions.Test.Definition
+    Definition
     |> Ash.Query.for_read(:read, %{}, authorize?: false)
     |> Ash.Query.do_filter(key: key)
     |> Ash.read!(authorize?: false)
@@ -169,7 +170,7 @@ defmodule AshDecisions.WebTest do
       |> render_submit(%{"xml" => @table_xml})
 
       draft =
-        AshDecisions.Test.Definition
+        Definition
         |> Ash.Query.for_read(:read, %{}, authorize?: false)
         |> Ash.Query.do_filter(key: "web_test", status: :draft)
         |> Ash.read_one!(authorize?: false)
@@ -194,7 +195,7 @@ defmodule AshDecisions.WebTest do
       assert has_element?(view, "#decision-errors")
 
       draft =
-        AshDecisions.Test.Definition
+        Definition
         |> Ash.Query.for_read(:read, %{}, authorize?: false)
         |> Ash.Query.do_filter(key: "web_test", status: :draft)
         |> Ash.read_one!(authorize?: false)
@@ -219,12 +220,73 @@ defmodule AshDecisions.WebTest do
       |> render_submit(%{"xml" => @table_xml})
 
       published =
-        AshDecisions.Test.Definition
+        Definition
         |> Ash.Query.for_read(:read, %{}, authorize?: false)
         |> Ash.Query.do_filter(key: "web_test", status: :published)
         |> Ash.read!(authorize?: false)
 
       assert [%{version: 1}] = published
+    end
+  end
+
+  describe "discarding a draft" do
+    test "the button is offered only for a stored draft", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/editor")
+      refute has_element?(view, "#decision-discard")
+
+      view |> element("#decision-save-form") |> render_submit(%{"xml" => @table_xml})
+      assert has_element?(view, "#decision-discard[data-confirm]")
+    end
+
+    test "discarding removes the draft and falls back to the starter", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/editor")
+      view |> element("#decision-save-form") |> render_submit(%{"xml" => @table_xml})
+
+      view |> element("#decision-discard") |> render_click()
+
+      assert stored() == []
+      assert flash(view)["info"] == "Draft discarded."
+      assert has_element?(view, "#decision-origin", "nothing is stored until you save")
+    end
+
+    test "with a baseline, discarding falls back to the baseline, read-only", %{conn: conn} do
+      Definition.create!(
+        %{key: "web_test", name: "Own", xml: @table_xml},
+        authorize?: false
+      )
+
+      {:ok, view, _html} = live(conn, "/baseline-editor")
+      view |> element("#decision-discard") |> render_click()
+
+      assert stored() == []
+      assert has_element?(view, "#decision-customize")
+    end
+
+    test "a published decision offers no discard, and the action refuses it", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/editor")
+      view |> element("#decision-publish-form") |> render_submit(%{"xml" => @table_xml})
+
+      assert [%{status: :published} = published] = stored()
+      refute has_element?(view, "#decision-discard")
+
+      assert {:error, %Ash.Error.Invalid{}} =
+               Definition.discard(published, authorize?: false)
+
+      assert [%{status: :published}] = stored()
+    end
+
+    test "a stale draft struct cannot take the row it has since become" do
+      draft =
+        Definition.create!(
+          %{key: "web_test", name: "Own", xml: @table_xml},
+          authorize?: false
+        )
+
+      Definition.publish!(draft, authorize?: false)
+
+      assert {:error, %Ash.Error.Invalid{} = error} = Definition.discard(draft, authorize?: false)
+      assert Exception.message(error) =~ "draft"
+      assert [%{status: :published}] = stored()
     end
   end
 

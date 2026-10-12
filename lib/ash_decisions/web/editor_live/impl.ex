@@ -176,6 +176,12 @@ defmodule AshDecisions.Web.EditorLive.Impl do
     _ -> nil
   end
 
+  def swap("customize", socket, domain, {baseline_mfa, customize_mfa}),
+    do: customize(socket, domain, customize_mfa, baseline_mfa)
+
+  def swap("discard", socket, domain, {baseline_mfa, _customize_mfa}),
+    do: discard(socket, domain, baseline_mfa)
+
   # Copying a baseline is the host's act: it knows where baselines live and what
   # lineage to record. The editor asks, then reloads onto the draft that now exists.
   def customize(socket, domain, customize_mfa, baseline_mfa) do
@@ -254,6 +260,30 @@ defmodule AshDecisions.Web.EditorLive.Impl do
 
   defp draft_name(%{latest_published: %{name: name}}) when is_binary(name), do: name
   defp draft_name(%{definition_key: key}), do: String.capitalize(key) <> " decision"
+
+  # Abandons the draft and falls back to whatever the key shows without one: the
+  # published decision, the baseline, or the template. Same authority as a save --
+  # the same actor, through the same scope -- and the action itself refuses
+  # anything that is not a draft.
+  def discard(%{assigns: %{definition: %{status: :draft} = draft}} = socket, domain, baseline_mfa) do
+    {:ok, %{definition: definition_mod}} = Resources.for_domain(domain)
+
+    case definition_mod.discard(draft, scope(socket.assigns)) do
+      {:error, error} ->
+        put_flash(socket, :error, Exception.message(error))
+
+      _discarded ->
+        socket = load(socket, domain, baseline_mfa)
+
+        socket
+        |> assign(:dirty, false)
+        |> put_flash(:info, "Draft discarded.")
+        |> push_event("load_xml", %{xml: socket.assigns.xml})
+    end
+  end
+
+  def discard(socket, _domain, _baseline_mfa),
+    do: put_flash(socket, :error, "There is no draft to discard.")
 
   # Nothing to publish: a read-only baseline, or a save that did not produce a draft
   # (its flash already says why).

@@ -36,8 +36,13 @@ defmodule AshDecisions.Resources.Definition do
 
   ## The lifecycle
 
-  `draft → published → retired`, and nothing else. A draft is the only status
-  whose XML can be changed, there is at most one draft per key (a partial unique
+  `draft → published → retired`, and nothing else; a draft may also be
+  discarded (`discard/2`), which deletes it and is refused for anything that is
+  not a draft -- by validation; by `StillDraft`, which re-reads the row `FOR
+  UPDATE` inside the transaction, so a struct loaded as a draft and published
+  since is refused before anything runs (an event-logging wrapper around the
+  destroy would otherwise record a discard that deleted nothing); and by a
+  `status = 'draft'` filter on the delete itself. A draft is the only status whose XML can be changed, there is at most one draft per key (a partial unique
   index enforces it, so two designers cannot both open "the" draft), and
   publishing is refused while `errors` is non-empty.
 
@@ -170,6 +175,15 @@ defmodule AshDecisions.Resources.Definition do
           validate(AshDecisions.Resources.Definition.StatusIsPublished)
           change(set_attribute(:status, :retired))
         end
+
+        # Drafts only: the filter holds the rule at the database too (see moduledoc).
+        destroy :discard do
+          require_atomic?(false)
+
+          validate(AshDecisions.Resources.Definition.StatusIsDraft)
+          change(AshDecisions.Resources.Definition.StillDraft)
+          change(filter(status: :draft))
+        end
       end
 
       code_interface do
@@ -177,6 +191,7 @@ defmodule AshDecisions.Resources.Definition do
         define(:publish, action: :publish)
         define(:retire, action: :retire)
         define(:save_xml, action: :save_xml, args: [:xml])
+        define(:discard, action: :discard)
         define(:by_key_version, action: :read, get_by: [:key, :version], get?: true)
         define(:latest_published, action: :latest_published, args: [:key])
       end
@@ -509,6 +524,49 @@ defmodule AshDecisions.Resources.Definition.UniqueDraftCheck do
     |> Ash.read_one!(AshDecisions.Scope.engine(AshDecisions.Scope.from_changeset(changeset)))
     |> is_nil()
     |> Kernel.not()
+  end
+end
+
+defmodule AshDecisions.Resources.Definition.StillDraft do
+  @moduledoc false
+
+  # Re-reads the row being discarded, locked, inside the action's transaction, and
+  # refuses unless it is still a draft. See "The lifecycle" in the macro's moduledoc.
+
+  use Ash.Resource.Change
+
+  require Ash.Query
+
+  @impl true
+  def change(changeset, _opts, _context) do
+    Ash.Changeset.before_action(changeset, &still_draft/1)
+  end
+
+  defp still_draft(changeset) do
+    id = changeset.data.id
+    opts = AshDecisions.Scope.engine(AshDecisions.Scope.from_changeset(changeset))
+
+    changeset.resource
+    |> Ash.Query.for_read(:read, %{}, opts)
+    |> Ash.Query.filter(id == ^id)
+    |> Ash.Query.lock(:for_update)
+    |> Ash.read_one(opts)
+    |> case do
+      {:ok, %{status: :draft}} ->
+        changeset
+
+      {:ok, nil} ->
+        Ash.Changeset.add_error(changeset, field: :status, message: "the draft no longer exists")
+
+      {:ok, _not_a_draft} ->
+        Ash.Changeset.add_error(changeset,
+          field: :status,
+          message: "can only perform this action on a draft definition"
+        )
+
+      {:error, error} ->
+        Ash.Changeset.add_error(changeset, error)
+    end
   end
 end
 
