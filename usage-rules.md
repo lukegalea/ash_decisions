@@ -70,8 +70,8 @@ A decision answers a question; the caller decides what to do with the answer.
     resource's policies are emitted first — so put `AshDecisions.Checks.AshDecisionsInteraction`
     at the top of the base's policy set.
 12. **Which rule fired is the engine's answer, not ours.** Each `Evaluation` records
-    `matched_rule_ids` and `hit_policy` from `Boxic.DMN.evaluate_with_trace/3`, in the same
-    pass that produces the value. Do not compute a second opinion: one that disagrees with the
+    `matched_rule_ids` (the decision-table rules that matched) and `hit_policy` from
+    `Boxic.DMN.evaluate_with_trace/3`, in the same pass that produces the value. Do not compute a second opinion: one that disagrees with the
     engine that actually decided is worse than no answer. A failed evaluation records no
     matched rules.
 13. **Opening the editor writes nothing.** `AshDecisions.Web.EditorLive` creates the draft on
