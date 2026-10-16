@@ -22,8 +22,8 @@ and never decides; a business rule task hands the deciding to a decision.
 **Early, and specific about it.** What exists and is under test:
 
 - **`AshDecisions.Resources.Definition`** — versioned DMN definitions with a
-  `draft → published → retired` lifecycle, at most one draft per key, and a publish that
-  refuses to run over a compile error.
+  `draft → published → retired` lifecycle, at most one draft per key, a publish that
+  refuses to run over a compile error, and `discard/2`, which deletes a draft and nothing else.
 - **`AshDecisions.Resources.Evaluation`** — an append-only row per invoked decision: inputs,
   outputs, which rules matched, how long it took, and the failure when there was one.
 - **`AshDecisions.Compiler`** — DMN in, immutable JSON snapshot out, with an explicit list of
@@ -42,14 +42,14 @@ and never decides; a business rule task hands the deciding to a decision.
   and `:base` for sitting on a host application's base resource.
 
 What does **not** exist yet: any way to evaluate a decision against sample inputs *from the
-editor*, so an author publishes without having watched the table fire; and `matched_rule_ids` is
-always empty, because `Boxic.DMN.evaluate/3` reports what a decision returned but not which rule
-produced it — a real hole in the audit story, and upstream.
+editor*, so an author publishes without having watched the table fire.
 
 ## The engine is adopted, not written
 
 The DMN and FEEL implementation is [Boxic](https://github.com/koenusz/boxic) —
-`boxic_dmn` and `boxic_feel`, both Apache-2.0 and both on Hex. That was a measured decision
+`boxic_dmn` and `boxic_feel`, both Apache-2.0. `boxic_feel` comes from Hex; `boxic_dmn` is
+pinned to a fork (`lukegalea/boxic_dmn`) that adds `Boxic.DMN.evaluate_with_trace/3`, so an
+evaluation can record which rules matched, and changes nothing else. That was a measured decision
 rather than a preference: writing a conforming FEEL implementation is a 60–90 person-day
 project, and an independent run of the official conformance kit put Boxic at **97.68%**
 before any work of ours.
