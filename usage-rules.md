@@ -71,9 +71,12 @@ A decision answers a question; the caller decides what to do with the answer.
     at the top of the base's policy set.
 12. **Which rule fired is the engine's answer, not ours.** Each `Evaluation` records
     `matched_rule_ids` (the decision-table rules that matched) and `hit_policy` from
-    `Boxic.DMN.evaluate_with_trace/3`, in the same pass that produces the value. Do not compute a second opinion: one that disagrees with the
-    engine that actually decided is worse than no answer. A failed evaluation records no
-    matched rules.
+    `Boxic.DMN.evaluate_with_trace/3`, in the same pass that produces the value. Do not
+    compute a second opinion: one that disagrees with the engine that actually decided is
+    worse than no answer. A failed evaluation records no matched rules. By default a trace
+    that cannot be written is logged and the answer returned; pass `record: :required` on a
+    governed path and the evaluation returns `{:error, {:evaluation_not_recorded, reason}}`
+    instead.
 13. **Opening the editor writes nothing.** `AshDecisions.Web.EditorLive` creates the draft on
     the first save, from the document being saved. Until then it shows the scope's draft, its
     latest published definition, the host's `:baseline` (read-only), or a starter table, in

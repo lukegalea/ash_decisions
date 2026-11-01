@@ -243,5 +243,61 @@ defmodule AshDecisions.EvaluatorTest do
       assert row.hit_policy == nil
       assert row.error != nil
     end
+
+    test "record: :required fails the evaluation when the trace cannot be written" do
+      published =
+        Definition.create!(%{key: key(), name: "Discount", xml: @discount})
+        |> Definition.publish!()
+
+      inputs = %{"orderTotal" => 1200, "customerTier" => "gold"}
+
+      assert {:error, {:evaluation_not_recorded, :disk_full}} =
+               Evaluator.evaluate(published, inputs,
+                 evaluation_resource: AshDecisions.EvaluatorTest.FailingStore,
+                 record: :required
+               )
+
+      assert {:error, {:evaluation_not_recorded, %RuntimeError{}}} =
+               Evaluator.evaluate(published, inputs,
+                 evaluation_resource: AshDecisions.EvaluatorTest.RaisingStore,
+                 record: :required
+               )
+
+      # The default is unchanged: the answer survives a trace that was not written.
+      assert {:ok, _} =
+               Evaluator.evaluate(published, inputs,
+                 evaluation_resource: AshDecisions.EvaluatorTest.FailingStore
+               )
+    end
+
+    test "record: :required still records when the write succeeds" do
+      published =
+        Definition.create!(%{key: key(), name: "Discount", xml: @discount})
+        |> Definition.publish!()
+
+      correlation = Ecto.UUID.generate()
+
+      assert {:ok, _} =
+               Evaluator.evaluate(published, %{"orderTotal" => 1200, "customerTier" => "gold"},
+                 evaluation_resource: Evaluation,
+                 correlation_id: correlation,
+                 record: :required
+               )
+
+      assert [_row] =
+               Evaluation
+               |> Ash.Query.filter(correlation_id == ^correlation)
+               |> Ash.read!(authorize?: false)
+    end
   end
+end
+
+defmodule AshDecisions.EvaluatorTest.FailingStore do
+  @moduledoc false
+  def create(_attrs, _opts), do: {:error, :disk_full}
+end
+
+defmodule AshDecisions.EvaluatorTest.RaisingStore do
+  @moduledoc false
+  def create(_attrs, _opts), do: raise("store down")
 end
