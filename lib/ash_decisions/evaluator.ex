@@ -64,8 +64,12 @@ defmodule AshDecisions.Evaluator do
 
     * `:decision` — the decision name to evaluate.
     * `:timeout` — milliseconds, default #{@default_timeout_ms}.
-    * `:record` — write an `Evaluation` row. Default `true`; pass `false` for a designer
-      preview, which is a question about the model rather than a decision about a case.
+    * `:record` — write an `Evaluation` row. Default `true`: a failed write is logged and the
+      answer is returned anyway. Pass `false` for a designer preview, which is a question about
+      the model rather than a decision about a case. Pass `:required` on a governed path where
+      an answer without its trace must not be acted on: a failed write (an error tuple or a
+      raise) then fails the evaluation with `{:error, {:evaluation_not_recorded, reason}}`.
+      A decision that already failed still returns its own error.
     * `:evaluation_resource`, `:scope`, `:correlation_id` — how and where to record.
   """
   @spec evaluate(struct(), map(), keyword()) :: {:ok, result()} | {:error, term()}
@@ -85,8 +89,10 @@ defmodule AshDecisions.Evaluator do
         hit_policy: hit_policy_string(trace.hit_policy)
       }
 
-      record(definition, inputs, result, nil, opts)
-      {:ok, result}
+      case record(definition, inputs, result, nil, opts) do
+        :ok -> {:ok, result}
+        {:error, _} = unrecorded -> unrecorded
+      end
     else
       {:error, reason} = error ->
         # A failed evaluation is still evidence, and it names the decision it failed on
@@ -98,7 +104,7 @@ defmodule AshDecisions.Evaluator do
             _ -> nil
           end
 
-        record(definition, inputs, failed_result(definition, decision, started), reason, opts)
+        _ = record(definition, inputs, failed_result(definition, decision, started), reason, opts)
         error
     end
   end
@@ -244,20 +250,36 @@ defmodule AshDecisions.Evaluator do
   defp record(definition, inputs, result, error, opts) do
     resource = Keyword.get(opts, :evaluation_resource)
 
-    if Keyword.get(opts, :record, true) and resource do
+    mode = Keyword.get(opts, :record, true)
+
+    if mode in [true, :required] and resource do
       scope = Keyword.get(opts, :scope, %AshDecisions.Scope{})
       attrs = evaluation_attrs(definition, inputs, result, error, opts)
 
-      resource.create(attrs, AshDecisions.Scope.engine(scope))
+      case resource.create(attrs, AshDecisions.Scope.engine(scope)) do
+        {:error, reason} -> unrecorded(mode, reason)
+        _written -> :ok
+      end
+    else
+      :ok
     end
   rescue
-    # Evidence must not be able to fail the decision it is evidence of. A decision that
-    # answered correctly and could not be written down is a logging problem, and turning it
-    # into a routing failure would be a worse one.
-    e ->
-      Logger.warning("ash_decisions: could not record evaluation: #{Exception.message(e)}")
-      :ok
+    e -> unrecorded(Keyword.get(opts, :record, true), e)
   end
+
+  # By default evidence must not be able to fail the decision it is evidence of: a decision
+  # that answered correctly and could not be written down is a logging problem, and turning
+  # it into a routing failure would be a worse one. `record: :required` is the caller saying
+  # the opposite, because on its path an answer nobody can audit must not be acted on.
+  defp unrecorded(:required, reason), do: {:error, {:evaluation_not_recorded, reason}}
+
+  defp unrecorded(_mode, reason) do
+    Logger.warning("ash_decisions: could not record evaluation: #{describe(reason)}")
+    :ok
+  end
+
+  defp describe(%{__exception__: true} = e), do: Exception.message(e)
+  defp describe(other), do: inspect(other, limit: 5)
 
   defp evaluation_attrs(definition, inputs, result, error, opts) do
     %{
