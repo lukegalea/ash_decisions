@@ -183,7 +183,7 @@ defmodule AshDecisions.Verification.DecisionTable do
 
       {:error, failure} ->
         input = Enum.at(inputs, index) || %{}
-        cell = %{text: text || "", constraint: {:opaque, text || ""}}
+        cell = %{text: text, constraint: {:opaque, text}}
 
         {cell, [parse_finding(rule_id, index, input, text, failure) | acc]}
     end
@@ -821,7 +821,6 @@ defmodule AshDecisions.Verification.DecisionTable do
 
   defp bound_text({:incl, value}), do: Feel.print(value)
   defp bound_text({:excl, value}), do: Feel.print(value)
-  defp bound_text(:unbounded), do: "unbounded"
 
   defp witness(regions, columns) do
     regions
