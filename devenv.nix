@@ -20,7 +20,7 @@ in
 
   languages.elixir = {
     enable = true;
-    package = beam.elixir_1_18;
+    package = beam.elixir_1_20;
     lsp.enable = false;
   };
 
