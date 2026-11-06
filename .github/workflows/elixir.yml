@@ -61,8 +61,8 @@ jobs:
           path: |
             deps
             _build
-          key: ${{ runner.os }}-mix-${{ hashFiles('mix.lock') }}
-          restore-keys: ${{ runner.os }}-mix-
+          key: ${{ runner.os }}-mix-1.20.4-${{ hashFiles('mix.lock') }}
+          restore-keys: ${{ runner.os }}-mix-1.20.4-
       - run: mix deps.get
       # The compiler shells out to `xmllint` (boxic_dmn validates DMN documents
       # against the normative XSD through it), and the same binary loads the
@@ -86,8 +86,8 @@ jobs:
           path: |
             deps
             _build
-          key: ${{ runner.os }}-mix-${{ hashFiles('mix.lock') }}
-          restore-keys: ${{ runner.os }}-mix-
+          key: ${{ runner.os }}-mix-1.20.4-${{ hashFiles('mix.lock') }}
+          restore-keys: ${{ runner.os }}-mix-1.20.4-
       - run: mix deps.get
       - run: sudo apt-get update && sudo apt-get install -y libxml2-utils
       - run: mix compile --force --warnings-as-errors
@@ -104,8 +104,8 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: deps
-          key: ${{ runner.os }}-mix-${{ hashFiles('mix.lock') }}
-          restore-keys: ${{ runner.os }}-mix-
+          key: ${{ runner.os }}-mix-1.20.4-${{ hashFiles('mix.lock') }}
+          restore-keys: ${{ runner.os }}-mix-1.20.4-
       - run: mix deps.get
       - run: mix format --check-formatted
 
@@ -123,8 +123,8 @@ jobs:
           path: |
             deps
             _build
-          key: ${{ runner.os }}-mix-${{ hashFiles('mix.lock') }}
-          restore-keys: ${{ runner.os }}-mix-
+          key: ${{ runner.os }}-mix-1.20.4-${{ hashFiles('mix.lock') }}
+          restore-keys: ${{ runner.os }}-mix-1.20.4-
       - run: mix deps.get
       - run: mix credo --strict
 
@@ -144,8 +144,8 @@ jobs:
           path: |
             deps
             _build
-          key: ${{ runner.os }}-mix-${{ hashFiles('mix.lock') }}
-          restore-keys: ${{ runner.os }}-mix-
+          key: ${{ runner.os }}-mix-1.20.4-${{ hashFiles('mix.lock') }}
+          restore-keys: ${{ runner.os }}-mix-1.20.4-
       # The PLT is expensive to build and changes with the dependency set AND
       # the toolchain: "27.3.4" resolves the moving OTP patch build, and a PLT
       # restored across a patch roll aborts dialyzer with "Old PLT file". The
@@ -179,8 +179,8 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: deps
-          key: ${{ runner.os }}-mix-${{ hashFiles('mix.lock') }}
-          restore-keys: ${{ runner.os }}-mix-
+          key: ${{ runner.os }}-mix-1.20.4-${{ hashFiles('mix.lock') }}
+          restore-keys: ${{ runner.os }}-mix-1.20.4-
       - run: mix deps.get
       - run: mix docs
 
@@ -196,8 +196,8 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: deps
-          key: ${{ runner.os }}-mix-${{ hashFiles('mix.lock') }}
-          restore-keys: ${{ runner.os }}-mix-
+          key: ${{ runner.os }}-mix-1.20.4-${{ hashFiles('mix.lock') }}
+          restore-keys: ${{ runner.os }}-mix-1.20.4-
       - run: mix deps.get
       - run: mix deps.unlock --check-unused
 
@@ -213,8 +213,8 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: deps
-          key: ${{ runner.os }}-mix-${{ hashFiles('mix.lock') }}
-          restore-keys: ${{ runner.os }}-mix-
+          key: ${{ runner.os }}-mix-1.20.4-${{ hashFiles('mix.lock') }}
+          restore-keys: ${{ runner.os }}-mix-1.20.4-
       - run: mix deps.get
       - run: mix deps.audit
 
@@ -234,8 +234,8 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: deps
-          key: ${{ runner.os }}-mix-${{ hashFiles('mix.lock') }}
-          restore-keys: ${{ runner.os }}-mix-
+          key: ${{ runner.os }}-mix-1.20.4-${{ hashFiles('mix.lock') }}
+          restore-keys: ${{ runner.os }}-mix-1.20.4-
       - run: mix deps.get
       - run: mix hex.audit
 
