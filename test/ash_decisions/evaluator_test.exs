@@ -17,6 +17,8 @@ defmodule AshDecisions.EvaluatorTest do
   alias AshDecisions.Test.{Definition, Evaluation}
 
   @discount File.read!("test/fixtures/discount.dmn")
+  # Two decisions, Eligible and Offer; Offer requires Eligible.
+  @drd File.read!("test/fixtures/drd.dmn")
 
   # Not a fixture on disk: derived from the real one, so it cannot drift away from it.
   defp as_dmn_13(xml) do
@@ -119,6 +121,28 @@ defmodule AshDecisions.EvaluatorTest do
                  decision: "NoSuchDecision",
                  record: false
                )
+    end
+
+    test "a document with several decisions and no decision option is ambiguous, not a guess" do
+      assert {:error, {:ambiguous_decision, "lending", names}} =
+               Evaluator.evaluate(definition(@drd, "lending"), %{"age" => 30}, record: false)
+
+      assert Enum.sort(names) == ["Eligible", "Offer"]
+    end
+
+    test "the decision option picks which decision of a multi-decision document is evaluated" do
+      defn = definition(@drd, "lending")
+
+      assert {:ok, eligible} =
+               Evaluator.evaluate(defn, %{"age" => 30}, decision: "Eligible", record: false)
+
+      assert eligible.decision == "Eligible"
+
+      assert {:ok, offer} =
+               Evaluator.evaluate(defn, %{"age" => 30}, decision: "Offer", record: false)
+
+      assert offer.decision == "Offer"
+      refute offer.outputs == eligible.outputs
     end
 
     test "the model is cached by content hash, so a second evaluation does not reload it" do
