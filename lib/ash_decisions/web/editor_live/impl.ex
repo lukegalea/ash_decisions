@@ -182,6 +182,15 @@ defmodule AshDecisions.Web.EditorLive.Impl do
   def swap("discard", socket, domain, {baseline_mfa, _customize_mfa}),
     do: discard(socket, domain, baseline_mfa)
 
+  # Sent every time the route is entered, reconnects included. `route_key` tells
+  # the hook this is not a Revert or Discard, so unsaved edits may be kept.
+  def push_route_document(socket) do
+    push_event(socket, "load_xml", %{
+      xml: socket.assigns.xml,
+      route_key: socket.assigns.definition_key
+    })
+  end
+
   # Copying a baseline is the host's act: it knows where baselines live and what
   # lineage to record. The editor asks, then reloads onto the draft that now exists.
   def customize(socket, domain, customize_mfa, baseline_mfa) do

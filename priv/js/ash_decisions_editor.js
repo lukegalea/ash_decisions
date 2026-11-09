@@ -85,7 +85,8 @@ function resolveContainer(el) {
 //   import_error  %{ message: string }
 //
 // LV -> Hook  (handleEvent):
-//   load_xml    %{ xml }
+//   load_xml    %{ xml, route_key? }  (route_key: sent on entering the route;
+//                                      see _keepsCanvasFor)
 //   collect_xml %{}
 //   open_view   %{ index }
 //   fit         %{}
@@ -124,7 +125,11 @@ export const AshDecisionsEditor = {
       this._boundViewers.add(viewer);
 
       try {
-        viewer.get('eventBus').on('commandStack.changed', () => {
+        // Importing clears the stack, which reports a change nobody made.
+        viewer.get('eventBus').on('commandStack.changed', (event) => {
+          if (event.trigger === 'clear') return;
+
+          this._dirty = true;
           this.pushEvent('dirty_changed', { dirty: true });
         });
       } catch (err) {
@@ -145,6 +150,8 @@ export const AshDecisionsEditor = {
     this._importXml(this.el.dataset.xml || '', { resetDirty: false });
 
     this.handleEvent('load_xml', (payload) => {
+      if (this._keepsCanvasFor(payload)) return;
+
       this._importXml(payload.xml, { resetDirty: true });
     });
 
@@ -188,13 +195,39 @@ export const AshDecisionsEditor = {
   _importXml(xml, opts) {
     if (!xml) return;
 
+    // Set before the import starts, so a second delivery of the same document
+    // mid-import is recognised.
+    this._canvasXml = xml;
+
     this._modeler
       .importXML(xml)
       .then(() => {
+        this._dirty = false;
         this._fit();
         if (opts.resetDirty) this.pushEvent('dirty_changed', { dirty: false });
       })
-      .catch((err) => pushError(this, err));
+      .catch((err) => {
+        this._canvasXml = null;
+        pushError(this, err);
+      });
+  },
+
+  // The server pushes the route's document (a load_xml with a route_key) every
+  // time the route is entered: the first connect, a patch, and every reconnect.
+  // The canvas already holds that document after the first, and on a reconnect
+  // it may hold edits the server never saw, which must not be replaced.
+  _keepsCanvasFor(payload) {
+    if (payload.route_key === undefined) return false;
+
+    const sameRoute = payload.route_key === this._routeKey;
+    this._routeKey = payload.route_key;
+
+    const keep = payload.xml === this._canvasXml || (this._dirty && sameRoute);
+
+    // A reconnect starts a new server process that believes the canvas is clean.
+    if (keep && this._dirty) this.pushEvent('dirty_changed', { dirty: true });
+
+    return keep;
   },
 
   // Only the DRD has a canvas to zoom. A decision table is a table: asking it

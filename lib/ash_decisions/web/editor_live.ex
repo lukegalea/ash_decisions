@@ -68,6 +68,9 @@ defmodule AshDecisions.Web.EditorLive do
   Buttons: `collect-xml` (save), `publish`, `revert`, `customize`, `discard` (the
   draft, through the definition's `:discard` action), `fit`.
   Server → client: `load_xml`, `collect_xml`, `open_view`, `fit`.
+  `load_xml` carries `route_key` when sent on entering the route, which includes
+  every reconnect; the hook keeps a canvas that already holds the document or has
+  unsaved edits to the same key.
   """
 
   use Phoenix.Component
@@ -127,7 +130,7 @@ defmodule AshDecisions.Web.EditorLive do
           |> EditorLive.Impl.load(@ash_decisions_domain, @ash_decisions_baseline_mfa)
 
         if connected?(socket) do
-          {:noreply, push_event(socket, "load_xml", %{xml: socket.assigns.xml})}
+          {:noreply, EditorLive.Impl.push_route_document(socket)}
         else
           {:noreply, socket}
         end
