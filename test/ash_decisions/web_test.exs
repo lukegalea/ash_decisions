@@ -59,6 +59,17 @@ defmodule AshDecisions.WebTest do
   defp flash(view), do: :sys.get_state(view.pid).socket.assigns.flash
 
   describe "opening the editor" do
+    test "entering the route names its key on the push; a revert's push does not", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/editor")
+
+      assert_push_event(view, "load_xml", %{route_key: "web_test"})
+
+      render_click(view, "revert", %{})
+
+      assert_push_event(view, "load_xml", revert)
+      refute Map.has_key?(revert, :route_key)
+    end
+
     test "shows a starter document and stores nothing until a save", %{conn: conn} do
       {:ok, view, _html} = live(conn, "/editor")
 
