@@ -80,7 +80,7 @@ defmodule AshDecisions.MixProject do
       # `Boxic.DMN.evaluate_with_trace/3,4` (see the fork's README) and changes
       # nothing else; the ref is the audited revision this package tracks.
       {:boxic_dmn,
-       github: "lukegalea/boxic_dmn", ref: "92c2a2adb3f7a58d3027d8c5ab17de927356bc7b"},
+       github: "lukegalea/boxic_dmn", ref: "6280f2fa89d711f7bf7b058cd2dc416f2f0dbc1f"},
       {:boxic_feel, "~> 0.2"},
       {:decimal, "~> 3.1"},
       {:jason, "~> 1.2"},
