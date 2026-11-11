@@ -96,11 +96,6 @@ export const AshDecisionsEditor = {
   mounted() {
     const container = resolveContainer(this.el);
 
-    if (!container) {
-      pushError(this, 'AshDecisionsEditor: no .ash-decisions-canvas container found');
-      return;
-    }
-
     try {
       this._modeler = new Modeler({ container: container });
     } catch (err) {
