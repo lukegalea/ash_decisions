@@ -71,6 +71,11 @@ defmodule AshDecisions.Web.EditorLive do
   `load_xml` carries `route_key` when sent on entering the route, which includes
   every reconnect; the hook keeps a canvas that already holds the document or has
   unsaved edits to the same key.
+
+  The hook object is `AshDecisionsEditor` from `priv/js/ash_decisions_editor.js`.
+  `priv/js/hooks.js` exports the package's hooks with the events each one handles,
+  for hosts that build their `hooks` programmatically or load hook code lazily —
+  see the README.
   """
 
   use Phoenix.Component
