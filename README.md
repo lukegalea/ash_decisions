@@ -122,6 +122,34 @@ is the claim.
 It also means the conformance number is a statement about DMN 1.5 documents specifically:
 that is what upstream ships, and there is no 1.2/1.3/1.4 corpus to measure against.
 
+## The editor hook
+
+`AshDecisions.Web.EditorLive` drives its canvas with one LiveView hook,
+`AshDecisionsEditor`, defined in `priv/js/ash_decisions_editor.js` (which imports
+the DMN stylesheet). Register it like any Phoenix hook: import the module and
+put it in the `hooks` you pass to the `LiveSocket`, under its registered name.
+
+`priv/js/hooks.js` is the same list, machine-readable, for hosts that build their
+`hooks` rather than write them. It has no top-level imports — hosts include it on
+every page, and an import here would pull dmn-js in with it — and it maps each
+hook's registered name to the events it handles and a `load` that fetches its code:
+
+```js
+import { hooks as decisionHooks } from "./priv/js/hooks.js";
+
+// Eager: register every hook at boot. The same set a direct import gives.
+const hooks = Object.fromEntries(
+  await Promise.all(
+    Object.entries(decisionHooks).map(async ([name, hook]) => [name, await hook.load()]),
+  ),
+);
+```
+
+A lazy host wraps each `load` (its own code-splitting around the `import` inside)
+and subscribes to `hook.events` before calling it — the editor subscribes in
+`mounted()`, so a server push that arrives while the code is still in flight must
+already have somewhere to land.
+
 ## Requirements
 
 `boxic_dmn` validates documents against the normative XSD by shelling out to **`xmllint`**,
