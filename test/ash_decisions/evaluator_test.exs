@@ -294,6 +294,46 @@ defmodule AshDecisions.EvaluatorTest do
                )
     end
 
+    test "an explicit false answer is recorded, and no match records no answer" do
+      # Derived from the real fixture: a boolean table whose standard-tier rule answers false.
+      xml =
+        @discount
+        |> String.replace(
+          ~s(typeRef="number"/>\n    <informationRequirement),
+          ~s(typeRef="boolean"/>\n    <informationRequirement)
+        )
+        |> String.replace(
+          ~s(label="Discount" typeRef="number"),
+          ~s(label="Discount" typeRef="boolean")
+        )
+        |> String.replace(["<text>0.15</text>", "<text>0.10</text>"], "<text>true</text>")
+        |> String.replace(
+          ~s(<outputEntry id="rule_standard_2"><text>0</text>),
+          ~s(<outputEntry id="rule_standard_2"><text>false</text>)
+        )
+
+      published =
+        Definition.create!(%{key: key(), name: "Eligible", xml: xml}) |> Definition.publish!()
+
+      for {tier, expected} <- [{"standard", %{"value" => false}}, {"silver", nil}] do
+        correlation = Ecto.UUID.generate()
+
+        assert {:ok, _} =
+                 Evaluator.evaluate(published, %{"orderTotal" => 50, "customerTier" => tier},
+                   evaluation_resource: Evaluation,
+                   correlation_id: correlation,
+                   record: :required
+                 )
+
+        assert [row] =
+                 Evaluation
+                 |> Ash.Query.filter(correlation_id == ^correlation)
+                 |> Ash.read!(authorize?: false)
+
+        assert row.outputs == expected
+      end
+    end
+
     test "record: :required still records when the write succeeds" do
       published =
         Definition.create!(%{key: key(), name: "Discount", xml: @discount})
