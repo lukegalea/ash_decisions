@@ -219,6 +219,80 @@
   box-shadow: 2px 2px 0 0 var(--a2ui-color-border, #141414);
 }
 
+/*
+ * The trial page (`AshDecisions.Web.TryLive`): fields, the result panel and
+ * the messages around them. Same tokens and fallbacks as the editor chrome.
+ */
+
+.ash-dmn-trial-body,
+.ash-dmn-trial-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.ash-dmn-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.ash-dmn-field label {
+  font-size: var(--a2ui-font-size-m, 0.875rem);
+  font-weight: 600;
+}
+
+.ash-dmn-input {
+  font: inherit;
+  font-size: var(--a2ui-font-size-m, 0.875rem);
+  padding: 0.3rem 0.5rem;
+  background: var(--a2ui-color-surface, #fff);
+  color: var(--a2ui-color-on-surface, inherit);
+  border: var(--a2ui-border-width, 2px) solid var(--a2ui-color-border, #141414);
+  border-radius: var(--a2ui-border-radius, 0.375rem);
+}
+
+.ash-dmn-type,
+.ash-dmn-mono {
+  font-family: ui-monospace, monospace;
+}
+
+.ash-dmn-type {
+  margin-left: 0.375rem;
+  font-size: var(--a2ui-font-size-s, 0.75rem);
+  font-weight: 400;
+  opacity: 0.6;
+}
+
+.ash-dmn-muted {
+  font-size: var(--a2ui-font-size-s, 0.75rem);
+  opacity: 0.7;
+}
+
+.ash-dmn-error-text {
+  margin: 0;
+  font-size: var(--a2ui-font-size-m, 0.875rem);
+  color: var(--a2ui-color-error, #991b1b);
+}
+
+/* The canvas panel deliberately has no padding (see above); the result panel
+ * holds text, so it does. */
+.ash-dmn-trial-result {
+  padding: 1rem;
+}
+
+.ash-dmn-trial-result h2,
+.ash-dmn-trial-result h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.ash-dmn-trial-result ul {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .ash-dmn-btn,
   .ash-dmn-btn--primary {

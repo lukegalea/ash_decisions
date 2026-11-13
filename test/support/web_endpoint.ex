@@ -57,6 +57,32 @@ defmodule AshDecisions.Web.RefusingBaselineEditorWrapper do
     customize: {AshDecisions.Test.Baselines, :refuse, []}
 end
 
+defmodule AshDecisions.Web.FrenchEditorWrapper do
+  @moduledoc false
+
+  use AshDecisions.Web.EditorLive,
+    domain: AshDecisions.Test.Domain,
+    decision: "web_test",
+    gettext: AshDecisions.Test.Gettext
+end
+
+defmodule AshDecisions.Web.TryWrapper do
+  @moduledoc false
+
+  use AshDecisions.Web.TryLive,
+    domain: AshDecisions.TrialHost.Domain,
+    actor: {AshDecisions.Test.TrialSession, :current_actor, []}
+end
+
+# No `actor:`, so the actor is the `:current_user` assign.
+defmodule AshDecisions.Web.FrenchTryWrapper do
+  @moduledoc false
+
+  use AshDecisions.Web.TryLive,
+    domain: AshDecisions.TrialHost.Domain,
+    gettext: AshDecisions.Test.Gettext
+end
+
 defmodule AshDecisions.Web.TestRouter do
   @moduledoc false
 
@@ -81,6 +107,12 @@ defmodule AshDecisions.Web.TestRouter do
     live("/refusing-baseline-editor", RefusingBaselineEditorWrapper, :index,
       as: :refusing_baseline_editor
     )
+
+    live_session :host, on_mount: AshDecisions.Test.TrialSession do
+      live("/decisions/:key/try", TryWrapper, :show, as: :try)
+      live("/fr/decisions/:key/try", FrenchTryWrapper, :show, as: :french_try)
+      live("/fr/editor", FrenchEditorWrapper, :index, as: :french_editor)
+    end
   end
 end
 

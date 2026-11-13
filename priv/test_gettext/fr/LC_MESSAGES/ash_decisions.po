@@ -1,0 +1,25 @@
+msgid ""
+msgstr ""
+"Language: fr\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+
+msgid "Try %{key}"
+msgstr "Essayer %{key}"
+
+msgid "Try it"
+msgstr "Essayer"
+
+msgid "Version"
+msgstr "Version"
+
+msgid "Enter a number, like 42 or 3.5."
+msgstr "Saisissez un nombre, par exemple 42 ou 3,5."
+
+msgid "Rules that matched"
+msgstr "Règles déclenchées"
+
+msgid "Save"
+msgstr "Enregistrer"
+
+msgid "new · nothing is stored until you save"
+msgstr "nouveau · rien n’est enregistré avant la première sauvegarde"

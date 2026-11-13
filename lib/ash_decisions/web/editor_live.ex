@@ -35,6 +35,10 @@ defmodule AshDecisions.Web.EditorLive do
       Customize on a read-only baseline. Expected to create the scope's own
       draft and answer `{:ok, draft}` or `{:error, message}`. Without it a
       baseline is view-only.
+    * `:gettext` — optional. The host's Gettext backend: the editor's own words
+      are looked up in the `"ash_decisions"` domain. See
+      `AshDecisions.Web.L10n`. A message the host's `:customize` callback
+      returns, and an error from an action, are shown as they come.
 
   ## Opening the editor writes nothing
 
@@ -80,6 +84,8 @@ defmodule AshDecisions.Web.EditorLive do
 
   use Phoenix.Component
 
+  import AshDecisions.Web.L10n, only: [t: 2, t: 3]
+
   defmacro __using__(opts) do
     domain = Keyword.fetch!(opts, :domain)
     decision_key = Keyword.get(opts, :decision)
@@ -90,6 +96,7 @@ defmodule AshDecisions.Web.EditorLive do
     actor_mfa = Keyword.get(opts, :actor, nil)
     baseline_mfa = Keyword.get(opts, :baseline, nil)
     customize_mfa = Keyword.get(opts, :customize, nil)
+    gettext = Keyword.get(opts, :gettext, nil)
 
     quote do
       use Phoenix.LiveView
@@ -101,6 +108,7 @@ defmodule AshDecisions.Web.EditorLive do
       @ash_decisions_actor_mfa unquote(actor_mfa)
       @ash_decisions_baseline_mfa unquote(baseline_mfa)
       @ash_decisions_customize_mfa unquote(customize_mfa)
+      @ash_decisions_gettext unquote(gettext)
 
       # ── Mount & params ──────────────────────────────────────────────────
 
@@ -108,6 +116,7 @@ defmodule AshDecisions.Web.EditorLive do
       def mount(_params, _session, socket) do
         {:ok,
          assign(socket,
+           gettext: @ash_decisions_gettext,
            definition_key: @ash_decisions_key,
            definition: nil,
            xml: "",
@@ -261,26 +270,28 @@ defmodule AshDecisions.Web.EditorLive do
           <h1>{@definition_key}</h1>
           <p>
             <%= if @definition do %>
-              draft v{@definition.version}
+              {t(@gettext, "draft v%{version}", version: @definition.version)}
             <% end %>
             <%!-- No draft row yet: say what the canvas is showing instead. --%>
             <span :if={@origin == :template} id="decision-origin">
-              new · nothing is stored until you save
+              {t(@gettext, "new · nothing is stored until you save")}
             </span>
             <span :if={@origin == :baseline} id="decision-origin">
-              baseline{if @baseline.version, do: " v#{@baseline.version}"} · read-only
+              {baseline_label(@gettext, @baseline)}
             </span>
             <%= if @latest_published do %>
-              · published v{@latest_published.version}
+              · {t(@gettext, "published v%{version}", version: @latest_published.version)}
             <% end %>
             <%= if @dirty do %>
-              · <span class="ash-dmn-warning">unsaved changes</span>
+              · <span class="ash-dmn-warning">{t(@gettext, "unsaved changes")}</span>
             <% end %>
           </p>
         </div>
 
         <div class="ash-dmn-actions">
-          <button id="decision-fit" class="ash-dmn-btn" phx-click="fit">Fit</button>
+          <button id="decision-fit" class="ash-dmn-btn" phx-click="fit">
+            {t(@gettext, "Fit")}
+          </button>
           <%= if @read_only do %>
             <button
               :if={@can_customize}
@@ -288,7 +299,7 @@ defmodule AshDecisions.Web.EditorLive do
               class="ash-dmn-btn ash-dmn-btn--primary"
               phx-click="customize"
             >
-              Customize
+              {t(@gettext, "Customize")}
             </button>
           <% else %>
             <%!-- Only a stored draft can be discarded; a published decision is retired,
@@ -298,20 +309,22 @@ defmodule AshDecisions.Web.EditorLive do
               id="decision-discard"
               class="ash-dmn-btn"
               phx-click="discard"
-              data-confirm="Discard this draft? Unpublished changes are lost."
+              data-confirm={t(@gettext, "Discard this draft? Unpublished changes are lost.")}
             >
-              Discard draft
+              {t(@gettext, "Discard draft")}
             </button>
             <button id="decision-revert" class="ash-dmn-btn" phx-click="revert">
-              Revert
+              {t(@gettext, "Revert")}
             </button>
-            <button id="decision-save" class="ash-dmn-btn" phx-click="collect-xml">Save</button>
+            <button id="decision-save" class="ash-dmn-btn" phx-click="collect-xml">
+              {t(@gettext, "Save")}
+            </button>
             <button
               id="decision-publish"
               class="ash-dmn-btn ash-dmn-btn--primary"
               phx-click="publish"
             >
-              Publish
+              {t(@gettext, "Publish")}
             </button>
           <% end %>
         </div>
@@ -367,4 +380,9 @@ defmodule AshDecisions.Web.EditorLive do
     </div>
     """
   end
+
+  defp baseline_label(gettext, %{version: version}) when not is_nil(version),
+    do: t(gettext, "baseline v%{version} · read-only", version: version)
+
+  defp baseline_label(gettext, _baseline), do: t(gettext, "baseline · read-only")
 end

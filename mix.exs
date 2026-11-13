@@ -59,7 +59,7 @@ defmodule AshDecisions.MixProject do
       # Only paths that exist. `documentation/` and `CHANGELOG.md` were listed
       # before either was written; Hex warns on a missing file rather than
       # failing, so the list quietly described a package that was never built.
-      files: ~w(lib priv/js LICENSE README.md
+      files: ~w(lib priv/js priv/gettext LICENSE README.md
         usage-rules.md mix.exs .formatter.exs),
       links: %{"GitHub" => "https://github.com/lukegalea/ash_decisions"}
     ]
@@ -98,6 +98,9 @@ defmodule AshDecisions.MixProject do
       # LiveView tests need an HTML query engine. `lazy_html` rather than floki
       # because it is what phoenix_live_view 1.x selects against.
       {:lazy_html, ">= 0.1.0", only: :test},
+      # Exercises the LiveViews' `gettext:` option against a real backend. The
+      # package itself never depends on gettext (see AshDecisions.Web.L10n).
+      {:gettext, "~> 0.26 or ~> 1.0", only: :test},
       {:sourceror, "~> 1.8", only: [:dev, :test]},
       {:ex_doc, "~> 0.34", only: :dev, runtime: false},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
