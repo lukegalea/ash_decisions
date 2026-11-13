@@ -41,6 +41,8 @@ and never decides; a business rule task hands the deciding to a decision.
 - **`AshDecisions.Scope`** and the generated authorization bypass, tenancy via `tenant?: true`,
   and `:base` for sitting on a host application's base resource.
 - **`AshDecisions.Web.EditorLive`** — the dmn-js editor as a `use` macro.
+- **`AshDecisions.Diff`** — what changed between two versions, compared over the compiled
+  snapshot rather than the XML, as plain change maps a host can render or store.
 - **`AshDecisions.Trial`** and **`AshDecisions.Web.TryLive`** — try a draft or any published
   version against sample inputs before relying on it, and see the answer and which rules
   matched. A trial records nothing, and it reads versions as the signed-in actor through the
