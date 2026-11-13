@@ -40,9 +40,34 @@ and never decides; a business rule task hands the deciding to a decision.
   timeout and size and depth bounds on every tenant-authored expression.
 - **`AshDecisions.Scope`** and the generated authorization bypass, tenancy via `tenant?: true`,
   and `:base` for sitting on a host application's base resource.
+- **`AshDecisions.Web.EditorLive`** — the dmn-js editor as a `use` macro.
+- **`AshDecisions.Diff`** — what changed between two versions, compared over the compiled
+  snapshot rather than the XML, as plain change maps a host can render or store.
+- **`AshDecisions.Trial`** and **`AshDecisions.Web.TryLive`** — try a draft or any published
+  version against sample inputs before relying on it, and see the answer and which rules
+  matched. A trial records nothing, and it reads versions as the signed-in actor through the
+  host's own read policy, never through the engine bypass.
 
-What does **not** exist yet: any way to evaluate a decision against sample inputs *from the
-editor*, so an author publishes without having watched the table fire.
+Both LiveViews take a `gettext:` option, the host's Gettext backend; their messages ship in
+`priv/gettext/ash_decisions.pot` (see `AshDecisions.Web.L10n`).
+
+## The trial page
+
+```elixir
+defmodule MyAppWeb.Decisions.TryLive do
+  use AshDecisions.Web.TryLive,
+    domain: MyApp.Decisions,
+    actor: {MyAppWeb.Decisions.Helpers, :current_actor, []},
+    gettext: MyAppWeb.Gettext
+end
+
+# router, inside the live_session that assigns :current_user and :current_tenant
+live "/decisions/:key/try", MyAppWeb.Decisions.TryLive
+```
+
+The host keeps the route, the layout and the link from its catalogue. The page is styled by
+`priv/js/ash_decisions.css`, which the editor hook imports; a host that shows the trial page
+without loading the editor imports that stylesheet itself.
 
 ## The engine is adopted, not written
 

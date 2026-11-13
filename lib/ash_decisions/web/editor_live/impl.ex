@@ -9,6 +9,7 @@ defmodule AshDecisions.Web.EditorLive.Impl do
   # stays readable callbacks and the logic stays ordinary functions; the domain is
   # passed explicitly rather than read from a module attribute.
 
+  import AshDecisions.Web.L10n, only: [t: 2, t: 3]
   import Phoenix.Component, only: [assign: 3]
   import Phoenix.LiveView, only: [put_flash: 3, push_event: 3]
 
@@ -200,7 +201,10 @@ defmodule AshDecisions.Web.EditorLive.Impl do
 
         socket
         |> assign(:dirty, false)
-        |> put_flash(:info, "Draft created from the baseline. Publish it to switch over.")
+        |> put_flash(
+          :info,
+          t(gettext(socket), "Draft created from the baseline. Publish it to switch over.")
+        )
         |> push_event("load_xml", %{xml: socket.assigns.xml})
 
       {:error, message} ->
@@ -208,15 +212,26 @@ defmodule AshDecisions.Web.EditorLive.Impl do
     end
   end
 
-  defp run_customize(nil, _key, _socket),
-    do: {:error, "This baseline cannot be customized from here."}
+  defp run_customize(nil, _key, socket),
+    do: {:error, t(gettext(socket), "This baseline cannot be customized from here.")}
 
   defp run_customize({module, function, args}, key, socket) do
     case apply(module, function, args ++ [key, socket]) do
-      {:ok, _draft} -> :ok
-      {:error, message} when is_binary(message) -> {:error, message}
-      {:error, %{__exception__: true} = error} -> {:error, Exception.message(error)}
-      other -> {:error, "Could not customize #{key}: #{inspect(other)}"}
+      {:ok, _draft} ->
+        :ok
+
+      {:error, message} when is_binary(message) ->
+        {:error, message}
+
+      {:error, %{__exception__: true} = error} ->
+        {:error, Exception.message(error)}
+
+      other ->
+        {:error,
+         t(gettext(socket), "Could not customize %{key}: %{reason}",
+           key: key,
+           reason: inspect(other)
+         )}
     end
   end
 
@@ -227,7 +242,10 @@ defmodule AshDecisions.Web.EditorLive.Impl do
     put_flash(
       socket,
       :error,
-      "This is a baseline and is read-only. Customize it to edit a copy of your own."
+      t(
+        gettext(socket),
+        "This is a baseline and is read-only. Customize it to edit a copy of your own."
+      )
     )
   end
 
@@ -258,7 +276,7 @@ defmodule AshDecisions.Web.EditorLive.Impl do
         |> assign(:errors, updated.errors || [])
         |> assign(:graph, updated.graph)
         |> assign(:dirty, false)
-        |> put_flash(:info, "Saved")
+        |> put_flash(:info, t(gettext(socket), "Saved"))
 
       {:error, error} ->
         socket
@@ -286,13 +304,13 @@ defmodule AshDecisions.Web.EditorLive.Impl do
 
         socket
         |> assign(:dirty, false)
-        |> put_flash(:info, "Draft discarded.")
+        |> put_flash(:info, t(gettext(socket), "Draft discarded."))
         |> push_event("load_xml", %{xml: socket.assigns.xml})
     end
   end
 
   def discard(socket, _domain, _baseline_mfa),
-    do: put_flash(socket, :error, "There is no draft to discard.")
+    do: put_flash(socket, :error, t(gettext(socket), "There is no draft to discard."))
 
   # Nothing to publish: a read-only baseline, or a save that did not produce a draft
   # (its flash already says why).
@@ -311,7 +329,10 @@ defmodule AshDecisions.Web.EditorLive.Impl do
         |> assign(:definition, published)
         |> assign(:errors, [])
         |> assign(:pending_publish, false)
-        |> put_flash(:info, "Published v#{published.version}")
+        |> put_flash(
+          :info,
+          t(gettext(socket), "Published v%{version}", version: published.version)
+        )
 
       {:error, error} ->
         socket
@@ -319,4 +340,7 @@ defmodule AshDecisions.Web.EditorLive.Impl do
         |> put_flash(:error, Exception.message(error))
     end
   end
+
+  # The host's Gettext backend, from the `:gettext` option; `nil` for English.
+  defp gettext(socket), do: socket.assigns[:gettext]
 end
