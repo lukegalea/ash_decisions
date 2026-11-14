@@ -94,7 +94,7 @@ defmodule AshDecisions.ReplayTest do
       decide!(t, v1, %{"amount" => 50})
       decide!(t, v1, %{"amount" => 150})
 
-      assert [%{inputs: %{"amount" => "150"}}, %{inputs: %{"amount" => "50"}}] = cases(t, key)
+      assert [%{inputs: %{"amount" => 150}}, %{inputs: %{"amount" => 50}}] = cases(t, key)
     end
 
     test "the engine bypass does not apply: no read, nothing to replay", %{tenant: t, key: key} do
@@ -118,7 +118,7 @@ defmodule AshDecisions.ReplayTest do
       for amount <- [10, 20, 30], do: decide!(t, v1, %{"amount" => amount})
       decide!(t, other, %{"amount" => 40})
 
-      assert [%{inputs: %{"amount" => "30"}}, %{inputs: %{"amount" => "20"}}] =
+      assert [%{inputs: %{"amount" => 30}}, %{inputs: %{"amount" => 20}}] =
                cases(t, key, limit: 2)
     end
 
@@ -143,9 +143,9 @@ defmodule AshDecisions.ReplayTest do
       candidate = version!(t, key, tier_xml(threshold: 200))
       result = Replay.run(candidate, cases(t, key))
 
-      assert outcome_of(result, "150") == :changed
-      assert outcome_of(result, "50") == :unchanged
-      assert outcome_of(result, "250") == :unchanged
+      assert outcome_of(result, 150) == :changed
+      assert outcome_of(result, 50) == :unchanged
+      assert outcome_of(result, 250) == :unchanged
       assert %{changed: 1, unchanged: 2, unreproducible: 0} = result.counts
 
       changed = Enum.find(result.cases, &(&1.outcome == :changed))
@@ -161,7 +161,7 @@ defmodule AshDecisions.ReplayTest do
 
       result = Replay.run(version!(t, key, tier_xml(high_id: "rule_big")), cases(t, key))
 
-      assert outcome_of(result, "150") == :rules_changed
+      assert outcome_of(result, 150) == :rules_changed
     end
 
     test "a recorded failure the candidate answers is :now_answers", %{tenant: t, key: key} do
@@ -173,7 +173,7 @@ defmodule AshDecisions.ReplayTest do
 
       result = Replay.run(version!(t, key, tier_xml(hit_policy: "UNIQUE")), cases(t, key))
 
-      assert outcome_of(result, "150") == :now_answers
+      assert outcome_of(result, 150) == :now_answers
     end
 
     test "an answer the candidate fails on is :now_fails", %{tenant: t, key: key} do
@@ -181,7 +181,7 @@ defmodule AshDecisions.ReplayTest do
       decide!(t, v1, %{"amount" => 150})
 
       candidate = version!(t, key, tier_xml(hit_policy: "UNIQUE", low_test: "&gt; 0"))
-      assert outcome_of(Replay.run(candidate, cases(t, key)), "150") == :now_fails
+      assert outcome_of(Replay.run(candidate, cases(t, key)), 150) == :now_fails
     end
 
     test "a case whose decision the candidate dropped is :skipped", %{tenant: t, key: key} do
