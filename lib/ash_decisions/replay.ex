@@ -195,7 +195,9 @@ defmodule AshDecisions.Replay do
     readings = Recorded.readings(c.inputs, Trial.inputs(c.definition))
 
     attempts =
-      Enum.map(readings, fn reading -> {reading, evaluate(c.definition, reading, c.decision, opts)} end)
+      Enum.map(readings, fn reading ->
+        {reading, evaluate(c.definition, reading, c.decision, opts)}
+      end)
 
     base = %{
       id: c.id,
@@ -270,7 +272,11 @@ defmodule AshDecisions.Replay do
     case Evaluator.evaluate(definition, inputs, eval_opts) do
       {:ok, result} ->
         %{
-          answer: if(is_nil(result.outputs), do: nil, else: Recorded.encode(%{"value" => result.outputs})),
+          answer:
+            if(is_nil(result.outputs),
+              do: nil,
+              else: Recorded.encode(%{"value" => result.outputs})
+            ),
           rules: result.matched_rule_ids,
           error: nil
         }
@@ -311,6 +317,10 @@ defmodule AshDecisions.Replay do
 
   defp summarise(cases) do
     zero = Map.new(outcomes(), fn {outcome, _label} -> {outcome, 0} end)
-    %{counts: Enum.reduce(cases, zero, &Map.update!(&2, &1.outcome, fn n -> n + 1 end)), cases: cases}
+
+    %{
+      counts: Enum.reduce(cases, zero, &Map.update!(&2, &1.outcome, fn n -> n + 1 end)),
+      cases: cases
+    }
   end
 end

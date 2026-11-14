@@ -198,13 +198,19 @@ defmodule AshDecisions.ReplayTest do
       result = Replay.run(version!(t, key, tier_xml()), cases(t, key))
 
       assert result.cases == []
-      assert Map.keys(result.counts) |> Enum.sort() == Replay.outcomes() |> Keyword.keys() |> Enum.sort()
+
+      assert Map.keys(result.counts) |> Enum.sort() ==
+               Replay.outcomes() |> Keyword.keys() |> Enum.sort()
+
       assert Enum.all?(result.counts, fn {_outcome, n} -> n == 0 end)
     end
   end
 
   describe "the baseline control" do
-    test "decimals recorded as strings reproduce through the declared type", %{tenant: t, key: key} do
+    test "decimals recorded as strings reproduce through the declared type", %{
+      tenant: t,
+      key: key
+    } do
       v1 = published!(t, key, tier_xml())
       decide!(t, v1, %{"amount" => Decimal.new("150.5")})
 
@@ -241,7 +247,14 @@ defmodule AshDecisions.ReplayTest do
       # A host that passes decimal strings on purpose (the judgments bridge does), and a table
       # that reads them with number().
       xml = tier_xml() |> String.replace("<text>amount</text>", "<text>number(amount)</text>")
-      xml = String.replace(xml, ~s(name="amount" typeRef="number"), ~s(name="amount" typeRef="string"))
+
+      xml =
+        String.replace(
+          xml,
+          ~s(name="amount" typeRef="number"),
+          ~s(name="amount" typeRef="string")
+        )
+
       v1 = published!(t, key, xml)
       decide!(t, v1, %{"amount" => "150"})
 
@@ -259,12 +272,16 @@ defmodule AshDecisions.ReplayTest do
           ~s(<inputData id="input_region" name="region"><variable id="var_region" name="region" typeRef="string"/></inputData>\n  <decision id="decision_tier")
         )
 
-      assert [%{missing_inputs: ["region"]}] = Replay.run(version!(t, key, extra), cases(t, key)).cases
+      assert [%{missing_inputs: ["region"]}] =
+               Replay.run(version!(t, key, extra), cases(t, key)).cases
     end
   end
 
   describe "compare/4, for a decision that records nothing" do
-    test "compares a baseline with a candidate over input sets the host builds", %{tenant: t, key: key} do
+    test "compares a baseline with a candidate over input sets the host builds", %{
+      tenant: t,
+      key: key
+    } do
       baseline = published!(t, key, tier_xml(threshold: 100))
       candidate = version!(t, key, tier_xml(threshold: 200))
 
@@ -274,7 +291,10 @@ defmodule AshDecisions.ReplayTest do
           %{"amount" => Decimal.new(150)}
         ])
 
-      assert [%{id: 0, outcome: :unchanged}, %{id: 1, outcome: :changed, inputs: %{"amount" => "150"}}] =
+      assert [
+               %{id: 0, outcome: :unchanged},
+               %{id: 1, outcome: :changed, inputs: %{"amount" => "150"}}
+             ] =
                result.cases
 
       assert %{changed: 1, unchanged: 1} = result.counts

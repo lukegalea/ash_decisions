@@ -45,7 +45,13 @@ defmodule AshDecisions.RecordedTest do
     ]
 
     test "revives by the declared type first, and keeps the stored map as the fallback" do
-      stored = %{"amount" => "12.5", "due" => "2026-01-15", "at" => "2026-01-15T10:00:00Z", "ok" => "true", "tier" => "gold"}
+      stored = %{
+        "amount" => "12.5",
+        "due" => "2026-01-15",
+        "at" => "2026-01-15T10:00:00Z",
+        "ok" => "true",
+        "tier" => "gold"
+      }
 
       assert [typed, ^stored] = Recorded.readings(stored, @declared)
 

@@ -336,7 +336,8 @@ defmodule AshDecisions.Web.TryLive do
   # The cases worth a row: anything the candidate changes, and anything that could not be
   # compared. Unchanged cases are only counted.
   @replay_rows 50
-  defp replay_rows(%{cases: cases}), do: cases |> Enum.reject(&(&1.outcome == :unchanged)) |> Enum.take(@replay_rows)
+  defp replay_rows(%{cases: cases}),
+    do: cases |> Enum.reject(&(&1.outcome == :unchanged)) |> Enum.take(@replay_rows)
 
   defp replay_more(%{cases: cases}),
     do: max(Enum.count(cases, &(&1.outcome != :unchanged)) - @replay_rows, 0)

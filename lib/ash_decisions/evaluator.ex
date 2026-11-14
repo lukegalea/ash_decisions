@@ -290,7 +290,8 @@ defmodule AshDecisions.Evaluator do
       decision_id: result.decision,
       inputs: Recorded.encode(inputs),
       # Nil-checked, not truthy-checked: an explicit `false` is an answer to record.
-      outputs: if(is_nil(result.outputs), do: nil, else: Recorded.encode(%{"value" => result.outputs})),
+      outputs:
+        if(is_nil(result.outputs), do: nil, else: Recorded.encode(%{"value" => result.outputs})),
       # From the same engine pass that produced the outputs: which decision-table rules
       # matched, and the hit policy that reduced them. See the moduledoc.
       matched_rule_ids: result.matched_rule_ids,
