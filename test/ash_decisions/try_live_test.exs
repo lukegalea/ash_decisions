@@ -186,6 +186,67 @@ defmodule AshDecisions.TryLiveTest do
     end
   end
 
+  describe "against recorded cases" do
+    defp decide!(ctx, total, tier) do
+      {:ok, _result} =
+        AshDecisions.Evaluator.evaluate(
+          ctx.published,
+          %{"orderTotal" => total, "customerTier" => tier},
+          evaluation_resource: Evaluation,
+          scope: %Scope{tenant: ctx.tenant},
+          record: :required
+        )
+    end
+
+    test "replaying the draft lists the recorded case it changes, and records nothing", ctx do
+      decide!(ctx, 1200, "gold")
+      decide!(ctx, 500, "standard")
+      {:ok, view, _html} = live(sign_in(ctx.conn, ctx.reader, ctx.tenant), path())
+
+      view |> element("#decision-try-replay-run") |> render_click()
+
+      assert has_element?(view, "#decision-try-replay-count-changed", "Changed: 1")
+      assert has_element?(view, "#decision-try-replay-count-unchanged", "Unchanged: 1")
+      assert has_element?(view, "#decision-try-replay-cases", "0.15")
+      assert has_element?(view, "#decision-try-replay-cases", "0.20")
+      assert length(evaluations(ctx.tenant)) == 2
+    end
+
+    test "the published version replays unchanged", ctx do
+      decide!(ctx, 1200, "gold")
+      {:ok, view, _html} = live(sign_in(ctx.conn, ctx.reader, ctx.tenant), path())
+
+      view
+      |> form("#decision-try-version-form", %{"version" => ctx.published.id})
+      |> render_change()
+
+      view |> element("#decision-try-replay-run") |> render_click()
+
+      assert has_element?(view, "#decision-try-replay-unchanged")
+      refute has_element?(view, "#decision-try-replay-cases")
+    end
+
+    test "with nothing recorded, there is nothing to replay", ctx do
+      {:ok, view, _html} = live(sign_in(ctx.conn, ctx.reader, ctx.tenant), path())
+
+      view |> element("#decision-try-replay-run") |> render_click()
+
+      assert has_element?(view, "#decision-try-replay-none")
+    end
+
+    test "another tenant's recorded cases are not replayed", ctx do
+      decide!(ctx, 1200, "gold")
+      other = Ecto.UUID.generate()
+      engine = Scope.engine(%Scope{tenant: other})
+      Definition.create!(%{key: @key, name: "Discount", xml: @xml}, engine)
+
+      {:ok, view, _html} = live(sign_in(ctx.conn, ctx.reader, other), path())
+      view |> element("#decision-try-replay-run") |> render_click()
+
+      assert has_element?(view, "#decision-try-replay-none")
+    end
+  end
+
   describe "the host's language" do
     test "with `gettext:` and a locale, the page is in that language", ctx do
       conn = sign_in(ctx.conn, ctx.reader, ctx.tenant, %{"locale" => "fr"})

@@ -32,6 +32,13 @@ defmodule AshDecisions.TrialHost.Evaluation do
     definition: AshDecisions.TrialHost.Definition,
     table: "tenant_dmn_evaluations",
     tenant?: true
+
+  # A replay reads evaluations as the actor, like a trial reads versions.
+  policies do
+    policy action_type(:read) do
+      authorize_if(actor_attribute_equals(:decisions?, true))
+    end
+  end
 end
 
 defmodule AshDecisions.TrialHost.Domain do

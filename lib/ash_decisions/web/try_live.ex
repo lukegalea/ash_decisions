@@ -59,13 +59,27 @@ defmodule AshDecisions.Web.TryLive do
   `#decision-try-decision`, `#decision-try-input-<name>`, `#decision-try-error-<name>`,
   `#decision-try-compile-errors`, `#decision-try-no-inputs`, `#decision-try-submit`,
   `#decision-try-result`, `#decision-try-outputs`, `#decision-try-rules`,
-  `#decision-try-rule-<id>`, `#decision-try-no-rules` and `#decision-try-error`.
+  `#decision-try-rule-<id>`, `#decision-try-no-rules`, `#decision-try-error`,
+  `#decision-try-replay`, `#decision-try-replay-run`, `#decision-try-replay-none`,
+  `#decision-try-replay-result`, `#decision-try-replay-counts`,
+  `#decision-try-replay-count-<outcome>`, `#decision-try-replay-unchanged`,
+  `#decision-try-replay-cases`, `#decision-try-replay-case-<evaluation id>` and
+  `#decision-try-replay-more`.
+
+  ## Against recorded cases
+
+  The page also replays the decision's most recent recorded evaluations against the chosen
+  version (`AshDecisions.Replay`), as the actor, recording nothing, and lists the cases whose
+  answer or matched rules would change. It reads the host's evaluation resource through its
+  read policy, so a host that gives readers no read on evaluations shows them nothing to
+  replay.
   """
 
   use Phoenix.Component
 
   import AshDecisions.Web.L10n, only: [t: 2, t: 3]
 
+  alias AshDecisions.Replay
   alias AshDecisions.Resources
   alias AshDecisions.Trial
 
@@ -131,7 +145,8 @@ defmodule AshDecisions.Web.TryLive do
       declared: [],
       raw: %{},
       field_errors: %{},
-      outcome: nil
+      outcome: nil,
+      replay: nil
     )
   end
 
@@ -168,6 +183,25 @@ defmodule AshDecisions.Web.TryLive do
     end
   end
 
+  def __event__("replay", params, socket, {domain, actor_mfa} = config) do
+    case fresh(socket, params["version"], config) do
+      nil ->
+        assign(socket, :replay, :none)
+
+      candidate ->
+        cases =
+          Replay.recorded(
+            definition(domain),
+            evaluation(domain),
+            socket.assigns.key,
+            read_opts(socket, actor_mfa)
+          )
+
+        replay = if cases == [], do: :none, else: {:ok, Replay.run(candidate, cases)}
+        assign(socket, selected: candidate, replay: replay)
+    end
+  end
+
   def __event__(_event, _params, socket, _config), do: socket
 
   defp resolve_key(params, compile_time_key) do
@@ -188,6 +222,11 @@ defmodule AshDecisions.Web.TryLive do
   defp definition(domain) do
     {:ok, %{definition: definition}} = Resources.for_domain(domain)
     definition
+  end
+
+  defp evaluation(domain) do
+    {:ok, %{evaluation: evaluation}} = Resources.for_domain(domain)
+    evaluation
   end
 
   defp read_opts(socket, actor_mfa),
@@ -230,7 +269,8 @@ defmodule AshDecisions.Web.TryLive do
           declared: Trial.inputs(definition),
           raw: %{},
           field_errors: %{},
-          outcome: nil
+          outcome: nil,
+          replay: nil
         )
     end
   end
@@ -284,6 +324,30 @@ defmodule AshDecisions.Web.TryLive do
       reason: inspect(reason, limit: 8, printable_limit: 200)
     )
   end
+
+  defp outcome_label(gettext, :changed), do: t(gettext, "Changed")
+  defp outcome_label(gettext, :now_fails), do: t(gettext, "Now fails")
+  defp outcome_label(gettext, :now_answers), do: t(gettext, "Now answers")
+  defp outcome_label(gettext, :rules_changed), do: t(gettext, "Same answer, different rules")
+  defp outcome_label(gettext, :unchanged), do: t(gettext, "Unchanged")
+  defp outcome_label(gettext, :unreproducible), do: t(gettext, "Could not be reproduced")
+  defp outcome_label(gettext, :skipped), do: t(gettext, "Skipped")
+
+  # The cases worth a row: anything the candidate changes, and anything that could not be
+  # compared. Unchanged cases are only counted.
+  @replay_rows 50
+  defp replay_rows(%{cases: cases}), do: cases |> Enum.reject(&(&1.outcome == :unchanged)) |> Enum.take(@replay_rows)
+
+  defp replay_more(%{cases: cases}),
+    do: max(Enum.count(cases, &(&1.outcome != :unchanged)) - @replay_rows, 0)
+
+  defp answer_text(_gettext, nil), do: "-"
+  defp answer_text(gettext, %{error: error}) when is_binary(error), do: t(gettext, "failed")
+  defp answer_text(_gettext, %{answer: %{"value" => value}}), do: format_value(value)
+  defp answer_text(_gettext, %{answer: answer}), do: format_value(answer)
+
+  defp rules_text(nil), do: ""
+  defp rules_text(%{rules: rules}), do: Enum.join(rules, ", ")
 
   defp format_value(%Decimal{} = value), do: Decimal.to_string(value, :normal)
   defp format_value(value) when is_binary(value), do: value
@@ -414,6 +478,80 @@ defmodule AshDecisions.Web.TryLive do
           <% {:error, reason} = @outcome %>
           {engine_error(@gettext, reason)}
         </p>
+
+        <div :if={@selected} id="decision-try-replay" class="ash-dmn-panel ash-dmn-trial-result">
+          <h2>{t(@gettext, "Against recorded cases")}</h2>
+          <p class="ash-dmn-muted">
+            {t(
+              @gettext,
+              "Re-run the most recent recorded decisions against this version and see which would change. Nothing is recorded."
+            )}
+          </p>
+          <div class="ash-dmn-actions">
+            <button
+              id="decision-try-replay-run"
+              type="button"
+              phx-click="replay"
+              phx-value-version={@selected.id}
+              class="ash-dmn-btn"
+            >
+              {t(@gettext, "Replay recorded cases")}
+            </button>
+          </div>
+
+          <p :if={@replay == :none} id="decision-try-replay-none">
+            {t(@gettext, "There are no recorded cases of this decision that you can replay.")}
+          </p>
+
+          <div :if={match?({:ok, _}, @replay)} id="decision-try-replay-result">
+            <% {:ok, result} = @replay %>
+            <ul id="decision-try-replay-counts">
+              <li
+                :for={{outcome, _label} <- Replay.outcomes()}
+                :if={result.counts[outcome] > 0}
+                id={"decision-try-replay-count-#{outcome}"}
+              >
+                {t(@gettext, "%{outcome}: %{count}",
+                  outcome: outcome_label(@gettext, outcome),
+                  count: result.counts[outcome]
+                )}
+              </li>
+            </ul>
+
+            <p :if={replay_rows(result) == []} id="decision-try-replay-unchanged">
+              {t(@gettext, "No replayed case changes under this version.")}
+            </p>
+
+            <table :if={replay_rows(result) != []} id="decision-try-replay-cases" class="ash-dmn-table">
+              <thead>
+                <tr>
+                  <th>{t(@gettext, "Recorded under")}</th>
+                  <th>{t(@gettext, "Outcome")}</th>
+                  <th>{t(@gettext, "Recorded answer")}</th>
+                  <th>{t(@gettext, "This version")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr :for={c <- replay_rows(result)} id={"decision-try-replay-case-#{c.id}"}>
+                  <td class="ash-dmn-mono">{t(@gettext, "v%{version}", version: c.version)}</td>
+                  <td>{outcome_label(@gettext, c.outcome)}</td>
+                  <td>
+                    <span class="ash-dmn-mono">{answer_text(@gettext, c.before)}</span>
+                    <span class="ash-dmn-muted">{rules_text(c.before)}</span>
+                  </td>
+                  <td>
+                    <span class="ash-dmn-mono">{answer_text(@gettext, c.after)}</span>
+                    <span class="ash-dmn-muted">{rules_text(c.after)}</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+
+            <p :if={replay_more(result) > 0} id="decision-try-replay-more" class="ash-dmn-muted">
+              {t(@gettext, "and %{count} more", count: replay_more(result))}
+            </p>
+          </div>
+        </div>
       </div>
     </div>
     """

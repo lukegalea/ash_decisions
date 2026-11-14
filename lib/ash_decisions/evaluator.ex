@@ -38,6 +38,7 @@ defmodule AshDecisions.Evaluator do
 
   alias AshDecisions.Dmn.Profile
   alias AshDecisions.Feel
+  alias AshDecisions.Recorded
 
   @cache_prefix {__MODULE__, :model}
   @default_timeout_ms 1_000
@@ -287,9 +288,9 @@ defmodule AshDecisions.Evaluator do
       definition_key: result.definition_key,
       definition_version: result.definition_version,
       decision_id: result.decision,
-      inputs: jsonable(inputs),
+      inputs: Recorded.encode(inputs),
       # Nil-checked, not truthy-checked: an explicit `false` is an answer to record.
-      outputs: if(is_nil(result.outputs), do: nil, else: jsonable(%{"value" => result.outputs})),
+      outputs: if(is_nil(result.outputs), do: nil, else: Recorded.encode(%{"value" => result.outputs})),
       # From the same engine pass that produced the outputs: which decision-table rules
       # matched, and the hit policy that reduced them. See the moduledoc.
       matched_rule_ids: result.matched_rule_ids,
@@ -299,16 +300,4 @@ defmodule AshDecisions.Evaluator do
       correlation_id: Keyword.get(opts, :correlation_id)
     }
   end
-
-  # Whatever the engine returned has to survive a jsonb round trip. Decimals in particular
-  # encode as strings rather than losing precision to a float.
-  defp jsonable(%Decimal{} = value), do: Decimal.to_string(value, :normal)
-  defp jsonable(%{__struct__: _} = value), do: inspect(value)
-
-  defp jsonable(map) when is_map(map),
-    do: Map.new(map, fn {k, v} -> {to_string(k), jsonable(v)} end)
-
-  defp jsonable(list) when is_list(list), do: Enum.map(list, &jsonable/1)
-  defp jsonable(value) when is_atom(value) and not is_boolean(value), do: to_string(value)
-  defp jsonable(value), do: value
 end

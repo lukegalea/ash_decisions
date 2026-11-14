@@ -293,6 +293,29 @@
   padding-left: 1.25rem;
 }
 
+/* The replayed cases that differ. Wide content scrolls inside the panel rather
+ * than widening the page. */
+.ash-dmn-table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  margin-top: 0.75rem;
+  border-collapse: collapse;
+  font-size: var(--a2ui-font-size-m, 0.875rem);
+}
+
+.ash-dmn-table th,
+.ash-dmn-table td {
+  padding: 0.375rem 0.75rem 0.375rem 0;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--a2ui-color-border, #141414);
+}
+
+.ash-dmn-table td .ash-dmn-muted {
+  display: block;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .ash-dmn-btn,
   .ash-dmn-btn--primary {

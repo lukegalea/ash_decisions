@@ -47,6 +47,12 @@ and never decides; a business rule task hands the deciding to a decision.
   version against sample inputs before relying on it, and see the answer and which rules
   matched. A trial records nothing, and it reads versions as the signed-in actor through the
   host's own read policy, never through the engine bypass.
+- **`AshDecisions.Replay`** — what a candidate version would have decided on the decision's
+  recorded cases: each recorded `Evaluation` is re-run against the candidate and its answer
+  and matched rules compared with the record. A case counts only when re-running it on the
+  version it was recorded under reproduces the record. `compare/4` does the same over input
+  sets the host builds, for a decision that records nothing. The trial page shows it under
+  "Against recorded cases".
 
 Both LiveViews take a `gettext:` option, the host's Gettext backend; their messages ship in
 `priv/gettext/ash_decisions.pot` (see `AshDecisions.Web.L10n`).
