@@ -171,7 +171,10 @@ defmodule AshDecisions.ReplayTest do
       assert [%{recorded: %{error: error}}] = cases(t, key)
       assert is_binary(error)
 
-      result = Replay.run(version!(t, key, tier_xml(hit_policy: "UNIQUE")), cases(t, key))
+      # The recorded version is the key's one draft, so the candidate is another key's: `run/3`
+      # puts the cases to whatever definition it is handed.
+      candidate = version!(t, key <> "-candidate", tier_xml(hit_policy: "UNIQUE"))
+      result = Replay.run(candidate, cases(t, key))
 
       assert outcome_of(result, 150) == :now_answers
     end
