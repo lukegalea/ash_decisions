@@ -302,5 +302,19 @@ defmodule AshDecisions.ReplayTest do
 
       assert %{changed: 1, unchanged: 1} = result.counts
     end
+
+    test "names the decision by its id or its name", %{tenant: t, key: key} do
+      baseline = published!(t, key, tier_xml(threshold: 100))
+      candidate = version!(t, key, tier_xml(threshold: 200))
+      inputs = [%{"amount" => Decimal.new(150)}]
+
+      for decision <- ["decision_tier", "Tier"] do
+        assert %{changed: 1, skipped: 0} =
+                 Replay.compare(baseline, candidate, inputs, decision: decision).counts
+      end
+
+      assert %{skipped: 1} =
+               Replay.compare(baseline, candidate, inputs, decision: "decision_gone").counts
+    end
   end
 end

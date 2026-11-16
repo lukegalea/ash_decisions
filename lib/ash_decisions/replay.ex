@@ -183,7 +183,7 @@ defmodule AshDecisions.Replay do
   """
   @spec run(struct(), [recorded_case()], keyword()) :: %{counts: map(), cases: [map()]}
   def run(candidate, cases, opts \\ []) when is_list(cases) do
-    names = Trial.decisions(candidate)
+    names = known_decisions(candidate)
     declared = candidate |> Trial.inputs() |> Enum.map(& &1.name)
 
     cases
@@ -228,13 +228,13 @@ defmodule AshDecisions.Replay do
   Compares `baseline` with `candidate`, two definition structs, over `input_sets`: maps of
   engine values the host builds itself, for a decision that records nothing.
 
-  `opts` takes `:decision` (the decision name, when the documents have more than one) and
+  `opts` takes `:decision` (the decision's name or id, when the documents have more than one) and
   `:timeout`. Each case's `id` is its index in `input_sets`, and `version` the baseline's.
   """
   @spec compare(struct(), struct(), [map()], keyword()) :: %{counts: map(), cases: [map()]}
   def compare(baseline, candidate, input_sets, opts \\ []) when is_list(input_sets) do
     decision = Keyword.get(opts, :decision)
-    names = Trial.decisions(candidate)
+    names = known_decisions(candidate)
     declared = candidate |> Trial.inputs() |> Enum.map(& &1.name)
 
     input_sets
@@ -308,6 +308,13 @@ defmodule AshDecisions.Replay do
   end
 
   defp same?(%{answer: a}, %{answer: b}), do: a == b
+
+  # The ways a caller can name one of the candidate's decisions: its name or its id, both of
+  # which the evaluator accepts.
+  defp known_decisions(%{graph: %{"decisions" => decisions}} = candidate) when is_map(decisions),
+    do: Trial.decisions(candidate) ++ Map.keys(decisions)
+
+  defp known_decisions(candidate), do: Trial.decisions(candidate)
 
   # A case recorded for a decision the candidate no longer has (renamed or removed) cannot be
   # put to it. A case that named no decision is put to the candidate as it is.
