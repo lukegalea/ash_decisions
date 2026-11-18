@@ -165,33 +165,13 @@ defmodule AshDecisions.Trial do
   Evaluates `definition` against `inputs`, recording nothing.
 
   `decision` names the decision to evaluate when the document has more than one. The result
-  is `AshDecisions.Evaluator`'s, with `:matched_rules` added: the matched rule ids resolved to
-  their position and description in the document.
+  is `AshDecisions.Evaluator`'s, whose `:matched_rules` resolves the matched rule ids to their
+  position and description in the document.
   """
   @spec run(struct(), map(), String.t() | nil) :: {:ok, map()} | {:error, term()}
   def run(definition, inputs, decision \\ nil) do
     opts = if decision, do: [decision: decision, record: false], else: [record: false]
 
-    with {:ok, result} <- Evaluator.evaluate(definition, inputs, opts) do
-      {:ok, Map.put(result, :matched_rules, matched_rules(definition, result))}
-    end
+    Evaluator.evaluate(definition, inputs, opts)
   end
-
-  defp matched_rules(%{graph: %{"decisions" => decisions}}, result) when is_map(decisions) do
-    rules =
-      decisions
-      |> Map.values()
-      |> Enum.find(%{}, &(&1["name"] == result.decision))
-      |> Map.get("rules", [])
-
-    for id <- result.matched_rule_ids do
-      case Enum.find_index(rules, &(&1["id"] == id)) do
-        nil -> %{id: id, position: nil, description: nil}
-        index -> %{id: id, position: index + 1, description: Enum.at(rules, index)["description"]}
-      end
-    end
-  end
-
-  defp matched_rules(_definition, result),
-    do: Enum.map(result.matched_rule_ids, &%{id: &1, position: nil, description: nil})
 end

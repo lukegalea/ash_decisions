@@ -354,6 +354,189 @@ defmodule AshDecisions.EvaluatorTest do
                |> Ash.read!(authorize?: false)
     end
   end
+
+  describe "what the result carries for a caller acting on it" do
+    # Derived from the real fixture: the large-order rule explains itself, the others do not.
+    defp described_discount do
+      String.replace(
+        @discount,
+        ~s(<rule id="rule_gold_large">),
+        ~s(<rule id="rule_gold_large">\n        <description>Large gold orders earn the top rate</description>)
+      )
+    end
+
+    test "matched_rules resolves each matched rule to its position and description" do
+      assert {:ok, result} =
+               Evaluator.evaluate(
+                 definition(described_discount()),
+                 %{"orderTotal" => 1200, "customerTier" => "gold"},
+                 record: false
+               )
+
+      assert result.matched_rules == [
+               %{
+                 id: "rule_gold_large",
+                 position: 1,
+                 description: "Large gold orders earn the top rate"
+               }
+             ]
+
+      assert {:ok, result} =
+               Evaluator.evaluate(
+                 definition(described_discount()),
+                 %{"orderTotal" => 500, "customerTier" => "gold"},
+                 record: false
+               )
+
+      # A rule the document does not describe is still named, with no words of its own.
+      assert result.matched_rules == [%{id: "rule_gold_small", position: 2, description: nil}]
+    end
+
+    test "no match resolves to no rules, and a failure carries none" do
+      assert {:ok, %{matched_rules: []}} =
+               Evaluator.evaluate(
+                 definition(@discount),
+                 %{"orderTotal" => 500, "customerTier" => "silver"},
+                 record: false
+               )
+    end
+
+    test "evaluation_id is nil when nothing was written" do
+      inputs = %{"orderTotal" => 1200, "customerTier" => "gold"}
+
+      assert {:ok, %{evaluation_id: nil}} =
+               Evaluator.evaluate(definition(@discount), inputs, record: false)
+
+      # Recording on, but no resource to record into.
+      assert {:ok, %{evaluation_id: nil}} = Evaluator.evaluate(definition(@discount), inputs)
+
+      # A default-mode write that failed is logged; the answer survives without an id.
+      assert {:ok, %{evaluation_id: nil}} =
+               Evaluator.evaluate(definition(@discount), inputs,
+                 evaluation_resource: AshDecisions.EvaluatorTest.FailingStore
+               )
+    end
+
+    test "evaluation_id is the id of the row this call wrote" do
+      published =
+        Definition.create!(%{key: key(), name: "Discount", xml: described_discount()})
+        |> Definition.publish!()
+
+      correlation = Ecto.UUID.generate()
+
+      for mode <- [true, :required] do
+        assert {:ok, result} =
+                 Evaluator.evaluate(published, %{"orderTotal" => 1200, "customerTier" => "gold"},
+                   evaluation_resource: Evaluation,
+                   correlation_id: correlation,
+                   record: mode
+                 )
+
+        assert is_binary(result.evaluation_id)
+
+        assert [row] =
+                 Evaluation
+                 |> Ash.Query.filter(id == ^result.evaluation_id)
+                 |> Ash.read!(authorize?: false)
+
+        assert row.correlation_id == correlation
+        assert row.definition_id == published.id
+        assert row.matched_rule_ids == Enum.map(result.matched_rules, & &1.id)
+      end
+    end
+  end
+
+  describe "require_inputs: :declared" do
+    # Derived from the real fixture: `orderTotal` is still declared and still read by the
+    # table, but the decision no longer requires it through an `informationRequirement`.
+    defp unwired_discount do
+      unwired =
+        String.replace(
+          @discount,
+          ~s(<informationRequirement id="req_total">\n      <requiredInput href="#input_order_total"/>\n    </informationRequirement>\n),
+          ""
+        )
+
+      refute unwired == @discount
+      unwired
+    end
+
+    test "the engine refuses a missing input the decision requires" do
+      assert {:error, {:evaluation_failed, {:missing_input, "orderTotal"}}} =
+               Evaluator.evaluate(definition(@discount), %{"customerTier" => "standard"},
+                 record: false
+               )
+    end
+
+    test "by default, a declared input the decision does not require evaluates as null" do
+      # The standard rule ignores the order total, so the table answers about a value
+      # nobody supplied.
+      assert {:ok, result} =
+               Evaluator.evaluate(definition(unwired_discount()), %{"customerTier" => "standard"},
+                 record: false
+               )
+
+      assert Decimal.equal?(result.outputs, Decimal.new(0))
+      assert result.matched_rule_ids == ["rule_standard"]
+    end
+
+    test "refuses, naming every declared input that was not supplied" do
+      assert {:error, {:missing_inputs, "discount", ["orderTotal"]}} =
+               Evaluator.evaluate(definition(unwired_discount()), %{"customerTier" => "standard"},
+                 record: false,
+                 require_inputs: :declared
+               )
+
+      assert {:error, {:missing_inputs, "discount", ["customerTier", "orderTotal"]}} =
+               Evaluator.evaluate(definition(@discount), %{},
+                 record: false,
+                 require_inputs: :declared
+               )
+    end
+
+    test "an explicit nil, and an atom key, count as supplied" do
+      assert {:ok, result} =
+               Evaluator.evaluate(
+                 definition(@discount),
+                 %{"orderTotal" => nil, customerTier: "standard"},
+                 record: false,
+                 require_inputs: :declared
+               )
+
+      assert result.matched_rule_ids == ["rule_standard"]
+    end
+
+    test "a refusal is a failed evaluation, and is recorded as one" do
+      published =
+        Definition.create!(%{key: key(), name: "Discount", xml: unwired_discount()})
+        |> Definition.publish!()
+
+      correlation = Ecto.UUID.generate()
+
+      assert {:error, {:missing_inputs, _key, ["orderTotal"]}} =
+               Evaluator.evaluate(published, %{"customerTier" => "standard"},
+                 evaluation_resource: Evaluation,
+                 correlation_id: correlation,
+                 record: :required,
+                 require_inputs: :declared
+               )
+
+      assert [row] =
+               Evaluation
+               |> Ash.Query.filter(correlation_id == ^correlation)
+               |> Ash.read!(authorize?: false)
+
+      assert row.outputs == nil
+      assert row.matched_rule_ids == []
+      assert row.error["reason"] =~ "missing_inputs"
+    end
+
+    test "an unknown value is a programming error" do
+      assert_raise ArgumentError, ~r/require_inputs/, fn ->
+        Evaluator.evaluate(definition(@discount), %{}, record: false, require_inputs: :all)
+      end
+    end
+  end
 end
 
 defmodule AshDecisions.EvaluatorTest.FailingStore do

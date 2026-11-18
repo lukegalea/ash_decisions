@@ -32,6 +32,33 @@ defmodule AshDecisions.Evaluator do
   is the policy that reduced them to the answer. Both come from
   `Boxic.DMN.evaluate_with_trace/3` in the same pass that produces the value, so what is
   recorded is what decided, never a second opinion re-derived here.
+
+  ## What is returned
+
+  The result carries the same provenance, plus two things a caller acting on the answer needs
+  and would otherwise have to re-derive:
+
+    * `evaluation_id` — the id of the `Evaluation` row this call wrote, or `nil` when nothing
+      was written (`record: false`, no `:evaluation_resource`, or a default-mode write that
+      failed and was logged). A caller that cites the decision as evidence cites this row,
+      without querying for it by correlation id afterwards.
+    * `matched_rules` — `matched_rule_ids` resolved against the graph of the definition that
+      was evaluated: each rule's `id`, its 1-based `position` in its table and its
+      `description` (`nil` where the document gives none, or where the rule is not in the
+      evaluated decision's table). Read from the same definition the engine ran, so a rule's
+      words can never come from another version published in between.
+
+  ## Declared inputs
+
+  The engine refuses an input the decision requires through an `informationRequirement` and
+  the caller did not supply. It does not refuse one the document declares as `inputData` but
+  the decision's table reads without that edge — an authoring slip a designer makes easy — and
+  that input evaluates as `null` into every rule that tests it: the table answers confidently
+  about a value nobody gave it. `require_inputs: :declared` refuses that too: every `inputData`
+  the document declares must be a key of `inputs` (an explicit `nil` counts as supplied). The
+  refusal is an ordinary failed evaluation, `{:error, {:missing_inputs, definition_key, names}}`,
+  recorded like any other. It is opt-in, because a document with several decisions may declare
+  inputs that the one being asked for never reads.
   """
 
   require Logger
@@ -51,7 +78,16 @@ defmodule AshDecisions.Evaluator do
           definition_version: integer(),
           duration_us: non_neg_integer(),
           matched_rule_ids: [String.t()],
-          hit_policy: String.t() | nil
+          matched_rules: [matched_rule()],
+          hit_policy: String.t() | nil,
+          evaluation_id: term() | nil
+        }
+
+  @typedoc "A matched rule, resolved against the evaluated definition's graph."
+  @type matched_rule :: %{
+          id: String.t(),
+          position: pos_integer() | nil,
+          description: String.t() | nil
         }
 
   @doc """
@@ -71,6 +107,9 @@ defmodule AshDecisions.Evaluator do
       an answer without its trace must not be acted on: a failed write (an error tuple or a
       raise) then fails the evaluation with `{:error, {:evaluation_not_recorded, reason}}`.
       A decision that already failed still returns its own error.
+    * `:require_inputs` — `:declared` refuses the evaluation with
+      `{:error, {:missing_inputs, definition_key, names}}` when an `inputData` the document
+      declares is not a key of `inputs`. Default `nil`: a missing input evaluates as `null`.
     * `:evaluation_resource`, `:scope`, `:correlation_id` — how and where to record.
   """
   @spec evaluate(struct(), map(), keyword()) :: {:ok, result()} | {:error, term()}
@@ -79,6 +118,7 @@ defmodule AshDecisions.Evaluator do
 
     with {:ok, model} <- model_for(definition),
          {:ok, decision} <- decision_name(definition, opts),
+         :ok <- inputs_supplied(definition, inputs, opts),
          {:ok, outputs, trace} <- run(model, decision, inputs, opts) do
       result = %{
         outputs: outputs,
@@ -87,11 +127,13 @@ defmodule AshDecisions.Evaluator do
         definition_version: definition.version,
         duration_us: System.monotonic_time(:microsecond) - started,
         matched_rule_ids: trace.matched_rules,
-        hit_policy: hit_policy_string(trace.hit_policy)
+        matched_rules: matched_rules(definition, decision, trace.matched_rules),
+        hit_policy: hit_policy_string(trace.hit_policy),
+        evaluation_id: nil
       }
 
       case record(definition, inputs, result, nil, opts) do
-        :ok -> {:ok, result}
+        {:ok, evaluation_id} -> {:ok, %{result | evaluation_id: evaluation_id}}
         {:error, _} = unrecorded -> unrecorded
       end
     else
@@ -118,7 +160,9 @@ defmodule AshDecisions.Evaluator do
       definition_version: definition.version,
       duration_us: System.monotonic_time(:microsecond) - started,
       matched_rule_ids: [],
-      hit_policy: nil
+      matched_rules: [],
+      hit_policy: nil,
+      evaluation_id: nil
     }
   end
 
@@ -219,6 +263,63 @@ defmodule AshDecisions.Evaluator do
 
   defp names(_definition), do: []
 
+  # ── declared inputs ──────────────────────────────────────────────────────
+
+  defp inputs_supplied(definition, inputs, opts) do
+    case Keyword.get(opts, :require_inputs) do
+      nil ->
+        :ok
+
+      :declared ->
+        # The keys the engine will see: `Feel.to_feel_value/1` stringifies them and drops a
+        # value that was never loaded, which is not a value anyone supplied.
+        supplied = Feel.to_feel_value(inputs)
+
+        case Enum.reject(declared_inputs(definition), &Map.has_key?(supplied, &1)) do
+          [] -> :ok
+          missing -> {:error, {:missing_inputs, definition.key, missing}}
+        end
+
+      other ->
+        raise ArgumentError,
+              "unknown :require_inputs option #{inspect(other)}; expected :declared or nil"
+    end
+  end
+
+  defp declared_inputs(%{graph: %{"input_data" => input_data}}) when is_map(input_data) do
+    input_data
+    |> Map.values()
+    |> Enum.map(& &1["name"])
+    |> Enum.reject(&is_nil/1)
+    |> Enum.sort()
+  end
+
+  defp declared_inputs(_definition), do: []
+
+  # ── matched rules ────────────────────────────────────────────────────────
+
+  # Resolved against the graph of the definition that was just evaluated, never one read
+  # again afterwards: the rule's words must belong to the version whose rule decided.
+  defp matched_rules(definition, decision, rule_ids) do
+    rules = decision_rules(definition, decision)
+
+    for id <- rule_ids do
+      case Enum.find_index(rules, &(&1["id"] == id)) do
+        nil -> %{id: id, position: nil, description: nil}
+        index -> %{id: id, position: index + 1, description: Enum.at(rules, index)["description"]}
+      end
+    end
+  end
+
+  defp decision_rules(%{graph: %{"decisions" => decisions}}, decision) when is_map(decisions) do
+    decisions
+    |> Map.values()
+    |> Enum.find(%{}, &(&1["name"] == decision))
+    |> Map.get("rules", [])
+  end
+
+  defp decision_rules(_definition, _decision), do: []
+
   # ── evaluation ───────────────────────────────────────────────────────────
 
   # Bounded the same way `AshDecisions.Feel` bounds an expression, and for the same reason: a
@@ -259,10 +360,10 @@ defmodule AshDecisions.Evaluator do
 
       case resource.create(attrs, AshDecisions.Scope.engine(scope)) do
         {:error, reason} -> unrecorded(mode, reason)
-        _written -> :ok
+        written -> {:ok, written_id(written)}
       end
     else
-      :ok
+      {:ok, nil}
     end
   rescue
     e -> unrecorded(Keyword.get(opts, :record, true), e)
@@ -276,8 +377,14 @@ defmodule AshDecisions.Evaluator do
 
   defp unrecorded(_mode, reason) do
     Logger.warning("ash_decisions: could not record evaluation: #{describe(reason)}")
-    :ok
+    {:ok, nil}
   end
+
+  # A code interface `create` answers `{:ok, record}`; a hand-written store may answer the
+  # record itself. Anything else wrote a row nobody can point at.
+  defp written_id({:ok, %{id: id}}), do: id
+  defp written_id(%{id: id}), do: id
+  defp written_id(_written), do: nil
 
   defp describe(%{__exception__: true} = e), do: Exception.message(e)
   defp describe(other), do: inspect(other, limit: 5)

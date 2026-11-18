@@ -76,7 +76,13 @@ A decision answers a question; the caller decides what to do with the answer.
     worse than no answer. A failed evaluation records no matched rules. By default a trace
     that cannot be written is logged and the answer returned; pass `record: :required` on a
     governed path and the evaluation returns `{:error, {:evaluation_not_recorded, reason}}`
-    instead.
+    instead. The result names the row it wrote (`evaluation_id`, `nil` when nothing was
+    written) and resolves the matched rules against the definition that was evaluated
+    (`matched_rules`: `id`, `position`, `description`): cite those, rather than querying the
+    row back by correlation id or reading rule descriptions from a definition fetched again.
+    Pass `require_inputs: :declared` to refuse, as `{:missing_inputs, key, names}`, an
+    evaluation missing any `inputData` the document declares; by default one the decision does
+    not wire as a requirement evaluates as `null`.
 13. **Opening the editor writes nothing.** `AshDecisions.Web.EditorLive` creates the draft on
     the first save, from the document being saved. Until then it shows the scope's draft, its
     latest published definition, the host's `:baseline` (read-only), or a starter table, in
