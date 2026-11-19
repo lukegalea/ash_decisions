@@ -8,7 +8,7 @@ defmodule AshDecisions.JsHooksTest do
   handles, and point `load` at the file that defines it. A host that loads a
   hook lazily subscribes to `events` before the code arrives, so a name missing
   here is a server push nobody hears. The hook sources are ground truth; this
-  test reads both with regexes, the same tier Keystone's drift test uses.
+  test reads both with regexes, the same tier a host app's drift test uses.
   """
 
   use ExUnit.Case, async: true
