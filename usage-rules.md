@@ -61,7 +61,10 @@ A decision answers a question; the caller decides what to do with the answer.
    keeps evaluating it across engine upgrades; text pins nothing, a tree pins a parser.
 9. **Every expression is hostile input.** Rules are authored by tenant admins. Size and depth
    are bounded at parse time, evaluation is killed on timeout, and external functions are
-   refused. Do not add an escape hatch to call host code from a decision.
+   refused. Do not add an escape hatch to call host code from a decision. The timeout is for
+   the expression, not for code loading: `AshDecisions.Engine.preload/0` loads the engine
+   before the clock starts, so a host does not preload the engine's modules itself (calling
+   `preload/0` at boot is allowed, never needed).
 10. **Engine calls go through `AshDecisions.Scope`, never `authorize?: false`.** Each generated
     resource declares one bypass on `AshDecisions.Checks.AshDecisionsInteraction`, and a test
     fails the build if a second `authorize?: false` appears under `lib/`.

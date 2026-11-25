@@ -449,6 +449,8 @@ defmodule AshDecisions.Feel do
   # this function performs itself.
   defp bounded(opts, fun) do
     timeout = Keyword.get(opts, :timeout) || AshDecisions.Config.feel_timeout_ms()
+    # Loaded before the clock starts: the bound is for the expression. See `AshDecisions.Engine`.
+    :ok = AshDecisions.Engine.preload()
 
     task =
       Task.async(fn ->

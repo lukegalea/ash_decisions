@@ -38,6 +38,9 @@ and never decides; a business rule task hands the deciding to a decision.
   blocking a publish. Only error-severity findings stop publication.
 - **`AshDecisions.Feel`** — the single module that touches the FEEL engine, with a killed-process
   timeout and size and depth bounds on every tenant-authored expression.
+- **`AshDecisions.Engine`** — loads the engine's code once per VM before an evaluation's
+  timeout starts, so in interactive mode (`mix test`) a module's first load is not counted
+  against the decision.
 - **`AshDecisions.Scope`** and the generated authorization bypass, tenancy via `tenant?: true`,
   and `:base` for sitting on a host application's base resource.
 - **`AshDecisions.Web.EditorLive`** — the dmn-js editor as a `use` macro.

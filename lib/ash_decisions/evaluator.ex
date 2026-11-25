@@ -329,6 +329,10 @@ defmodule AshDecisions.Evaluator do
     timeout = Keyword.get(opts, :timeout, @default_timeout_ms)
     context = Feel.to_feel_value(inputs)
 
+    # The limit is for the decision, not for the VM finding the engine's code. See
+    # `AshDecisions.Engine`.
+    :ok = AshDecisions.Engine.preload()
+
     task = Task.async(fn -> Boxic.DMN.evaluate_with_trace(model, decision, context) end)
 
     case Task.yield(task, timeout) || Task.shutdown(task, :brutal_kill) do
