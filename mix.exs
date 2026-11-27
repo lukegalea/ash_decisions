@@ -103,6 +103,11 @@ defmodule AshDecisions.MixProject do
       {:gettext, "~> 0.26 or ~> 1.0", only: :test},
       {:sourceror, "~> 1.8", only: [:dev, :test]},
       {:ex_doc, "~> 0.34", only: :dev, runtime: false},
+      # Dev-and-test-only: the laws judge (`mix ash_agent.laws`), run by
+      # scripts/iron-laws.sh in CI. runtime: false keeps it out of consumers'
+      # dependency graphs.
+      {:ash_agent_tools,
+       github: "lukegalea/ash_agent_tools", only: [:dev, :test], runtime: false},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
       {:mix_audit, ">= 0.0.0", only: [:dev, :test], runtime: false}

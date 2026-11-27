@@ -1,0 +1,26 @@
+[
+  {
+    "law": "11",
+    "file": "lib/ash_decisions/web/editor_live.ex",
+    "text": "def handle_event(\"save_xml\", %{\"xml\" => xml}, socket) do",
+    "reason": "Baselined unreviewed on 2026-11-26: the judge sees no Ash.can? or actor_fn in the file, and the handler runs inside a LiveView the host mounts. Reviewing how the host authorizes the editor and try-it events is a follow-up."
+  },
+  {
+    "law": "11",
+    "file": "lib/ash_decisions/web/try_live.ex",
+    "text": "def handle_event(event, params, socket) do",
+    "reason": "Baselined unreviewed on 2026-11-26: the judge sees no Ash.can? or actor_fn in the file, and the handler runs inside a LiveView the host mounts. Reviewing how the host authorizes the editor and try-it events is a follow-up."
+  },
+  {
+    "law": "23",
+    "file": "lib/mix/tasks/ash_decisions.tck.ex",
+    "text": "Mix.Task.run(\"app.start\")",
+    "reason": "Baselined unreviewed on 2026-11-26: the conformance task starts the whole application. Narrowing it to app.config plus ensure_started of what it uses is a follow-up."
+  },
+  {
+    "law": "23",
+    "file": "lib/mix/tasks/ash_decisions.tck.verify.ex",
+    "text": "Mix.Task.run(\"app.start\")",
+    "reason": "Baselined unreviewed on 2026-11-26: the conformance task starts the whole application. Narrowing it to app.config plus ensure_started of what it uses is a follow-up."
+  }
+]
