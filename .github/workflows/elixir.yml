@@ -72,6 +72,24 @@ jobs:
       # priv/test_repo/migrations itself, so there is no setup task here.
       - run: mix test
 
+  # The deterministic Iron Laws judge (`mix ash_agent.laws`, from the dev-only
+  # ash_agent_tools) over lib/, at its default `likely` tier. Hits that existed
+  # when the gate was added are listed in scripts/iron-laws.baseline.json; a new
+  # hit fails, and so does a baseline entry that no longer fires.
+  iron-laws:
+    name: Iron laws judge
+    runs-on: ubuntu-latest
+    env:
+      MIX_ENV: dev
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: erlef/setup-beam@v1
+        with:
+          elixir-version: "1.20.4"
+          otp-version: "27.3.4"
+      - run: mix deps.get
+      - run: scripts/iron-laws.sh tree
+
   compile-test:
     name: MIX_ENV=test mix compile --warnings-as-errors
     runs-on: ubuntu-latest
